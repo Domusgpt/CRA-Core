@@ -1,0 +1,39 @@
+{
+  "atlas_version": "1.0",
+  "id": "com.example.customer-support",
+  "version": "1.0.0",
+  "name": "Customer Support Atlas",
+  "description": "CRA-governed customer support operations including ticket management, knowledge base queries, and escalation workflows",
+  "capabilities": [
+    "ticket.create",
+    "ticket.update",
+    "ticket.resolve",
+    "ticket.escalate",
+    "kb.search",
+    "kb.retrieve",
+    "customer.lookup",
+    "refund.request"
+  ],
+  "context_packs": [
+    "context/overview.md",
+    "context/policies.md",
+    "context/api-reference.json"
+  ],
+  "policies": [
+    "policies/default.policy.json",
+    "policies/escalation.policy.json",
+    "policies/refund.policy.json"
+  ],
+  "adapters": {
+    "openai": "adapters/openai.tools.json",
+    "anthropic": "adapters/anthropic.skill.md",
+    "mcp": "adapters/mcp.server.json"
+  },
+  "dependencies": [],
+  "license": "MIT",
+  "certification": {
+    "carp_compliant": true,
+    "trace_compliant": true,
+    "last_certified": "2025-01-01"
+  }
+}

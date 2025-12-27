@@ -1,0 +1,40 @@
+{
+  "atlas_version": "1.0",
+  "id": "com.example.data-analytics",
+  "version": "1.0.0",
+  "name": "Data Analytics Atlas",
+  "description": "CRA-governed data analytics operations including querying, reporting, and data pipeline management",
+  "capabilities": [
+    "query.run",
+    "query.explain",
+    "report.generate",
+    "report.schedule",
+    "dashboard.create",
+    "dashboard.share",
+    "pipeline.status",
+    "pipeline.trigger",
+    "export.csv",
+    "export.json"
+  ],
+  "context_packs": [
+    "context/overview.md",
+    "context/schema.md",
+    "context/api-reference.json"
+  ],
+  "policies": [
+    "policies/default.policy.json",
+    "policies/data-access.policy.json"
+  ],
+  "adapters": {
+    "openai": "adapters/openai.tools.json",
+    "anthropic": "adapters/anthropic.skill.md",
+    "mcp": "adapters/mcp.server.json"
+  },
+  "dependencies": [],
+  "license": "MIT",
+  "certification": {
+    "carp_compliant": true,
+    "trace_compliant": true,
+    "last_certified": "2025-01-01"
+  }
+}

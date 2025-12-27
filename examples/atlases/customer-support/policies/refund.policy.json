@@ -1,0 +1,38 @@
+{
+  "policy_version": "1.0",
+  "id": "customer-support-refund",
+  "name": "Refund Policy",
+  "rules": [
+    {
+      "id": "refund-approval-threshold",
+      "type": "approval",
+      "description": "Refunds over $100 require human approval",
+      "action": "refund.request",
+      "condition": {
+        "field": "amount",
+        "operator": "gt",
+        "value": 100
+      },
+      "approvers": ["support-manager", "finance-team"]
+    },
+    {
+      "id": "refund-max-amount",
+      "type": "constraint",
+      "description": "Maximum single refund amount",
+      "action": "refund.request",
+      "constraint": {
+        "field": "amount",
+        "operator": "lte",
+        "value": 10000
+      },
+      "error": "Refunds over $10,000 must be processed manually"
+    },
+    {
+      "id": "refund-reason-required",
+      "type": "validation",
+      "description": "Refund reason must be provided",
+      "action": "refund.request",
+      "required_fields": ["reason", "order_id"]
+    }
+  ]
+}

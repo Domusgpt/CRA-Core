@@ -1,0 +1,40 @@
+{
+  "policy_version": "1.0",
+  "id": "customer-support-default",
+  "name": "Customer Support Default Policy",
+  "rules": [
+    {
+      "id": "require-customer-id",
+      "type": "scope",
+      "description": "All ticket operations require customer context",
+      "scopes": ["ticket.*"],
+      "required_context": ["customer_id"]
+    },
+    {
+      "id": "redact-pii",
+      "type": "redaction",
+      "description": "Redact PII from logs",
+      "patterns": [
+        "email",
+        "phone",
+        "ssn",
+        "credit_card"
+      ]
+    },
+    {
+      "id": "rate-limit-lookups",
+      "type": "rate_limit",
+      "description": "Limit customer lookups",
+      "action": "customer.lookup",
+      "limit": 10,
+      "window_seconds": 60
+    },
+    {
+      "id": "deny-bulk-operations",
+      "type": "deny",
+      "description": "Prevent bulk operations",
+      "pattern": "*.bulk.*",
+      "reason": "Bulk operations require manual approval"
+    }
+  ]
+}

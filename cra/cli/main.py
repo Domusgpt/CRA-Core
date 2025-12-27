@@ -4,7 +4,7 @@ import typer
 from rich.console import Console
 
 from cra.version import __version__
-from cra.cli.commands import atlas, doctor, execute, init, replay, resolve, trace
+from cra.cli.commands import atlas, doctor, execute, init, replay, resolve, template, trace
 
 # Create the main CLI app
 app = typer.Typer(
@@ -21,6 +21,7 @@ app.add_typer(execute.app, name="execute")
 app.add_typer(init.app, name="init")
 app.add_typer(replay.app, name="replay")
 app.add_typer(resolve.app, name="resolve")
+app.add_typer(template.app, name="template")
 app.add_typer(trace.app, name="trace")
 
 console = Console()

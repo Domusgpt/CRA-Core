@@ -1,0 +1,86 @@
+{
+  "policy_version": "1.0",
+  "id": "data-analytics-access",
+  "name": "Data Access Policy",
+  "rules": [
+    {
+      "id": "deny-drop-statements",
+      "type": "deny",
+      "description": "Prevent destructive SQL",
+      "action": "query.run",
+      "condition": {
+        "type": "sql_pattern",
+        "patterns": ["DROP", "DELETE", "TRUNCATE", "ALTER", "CREATE"]
+      },
+      "reason": "Destructive SQL operations not permitted through analytics"
+    },
+    {
+      "id": "query-timeout",
+      "type": "constraint",
+      "description": "Enforce query timeout",
+      "action": "query.run",
+      "constraint": {
+        "field": "timeout_seconds",
+        "operator": "lte",
+        "value": 300
+      }
+    },
+    {
+      "id": "row-limit",
+      "type": "constraint",
+      "description": "Enforce row limit",
+      "action": "query.run",
+      "constraint": {
+        "field": "limit",
+        "operator": "lte",
+        "value": 100000
+      }
+    },
+    {
+      "id": "pii-tables-approval",
+      "type": "approval",
+      "description": "PII tables require approval",
+      "action": "query.run",
+      "condition": {
+        "type": "sql_tables",
+        "tables": ["users", "customers", "payments", "personal_data"]
+      },
+      "approvers": ["data-governance", "privacy-team"]
+    },
+    {
+      "id": "redact-pii-columns",
+      "type": "redaction",
+      "description": "Redact PII in results",
+      "action": "query.run",
+      "columns": [
+        "email",
+        "phone",
+        "ssn",
+        "credit_card",
+        "password",
+        "secret"
+      ],
+      "redaction_type": "mask"
+    },
+    {
+      "id": "large-export-approval",
+      "type": "approval",
+      "description": "Large exports require approval",
+      "action": "export.*",
+      "condition": {
+        "type": "row_count",
+        "operator": "gt",
+        "value": 10000
+      },
+      "approvers": ["data-governance"]
+    },
+    {
+      "id": "rate-limit-queries",
+      "type": "rate_limit",
+      "description": "Limit query frequency",
+      "action": "query.run",
+      "limit": 100,
+      "window_seconds": 3600
+    }
+  ]
+}

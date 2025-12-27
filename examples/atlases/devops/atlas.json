@@ -1,0 +1,40 @@
+{
+  "atlas_version": "1.0",
+  "id": "com.example.devops",
+  "version": "1.0.0",
+  "name": "DevOps Atlas",
+  "description": "CRA-governed DevOps operations including deployments, infrastructure management, and incident response",
+  "capabilities": [
+    "deploy.staging",
+    "deploy.production",
+    "deploy.rollback",
+    "infra.scale",
+    "infra.status",
+    "incident.create",
+    "incident.update",
+    "incident.resolve",
+    "logs.search",
+    "metrics.query"
+  ],
+  "context_packs": [
+    "context/overview.md",
+    "context/runbooks.md",
+    "context/api-reference.json"
+  ],
+  "policies": [
+    "policies/default.policy.json",
+    "policies/production.policy.json"
+  ],
+  "adapters": {
+    "openai": "adapters/openai.tools.json",
+    "anthropic": "adapters/anthropic.skill.md",
+    "mcp": "adapters/mcp.server.json"
+  },
+  "dependencies": [],
+  "license": "MIT",
+  "certification": {
+    "carp_compliant": true,
+    "trace_compliant": true,
+    "last_certified": "2025-01-01"
+  }
+}
