@@ -24,10 +24,20 @@ from cra.core.carp import (
     Session,
     TraceContext,
 )
-from cra.core.trace import EventType
+from cra.core.policy import PolicyContext, PolicyEffect, PolicyEngine
+from cra.core.trace import EventType, Severity
 from cra.runtime.services.session_manager import SessionManager
 from cra.runtime.services.tracer import Tracer
 from cra.version import CARP_VERSION
+
+
+class PolicyDeniedError(Exception):
+    """Raised when a policy denies a resolution."""
+
+    def __init__(self, reason: str, rule_id: str | None = None) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.rule_id = rule_id
 
 
 class Resolver:
@@ -35,17 +45,25 @@ class Resolver:
 
     Handles the resolution of context and actions for agent tasks.
     All resolutions emit TRACE events for auditability.
+    Integrates with PolicyEngine for governance.
     """
 
-    def __init__(self, tracer: Tracer, session_manager: SessionManager) -> None:
+    def __init__(
+        self,
+        tracer: Tracer,
+        session_manager: SessionManager,
+        policy_engine: PolicyEngine | None = None,
+    ) -> None:
         """Initialize the resolver.
 
         Args:
             tracer: The tracer service for event emission
             session_manager: The session manager for session tracking
+            policy_engine: Optional policy engine for governance
         """
         self._tracer = tracer
         self._session_manager = session_manager
+        self._policy_engine = policy_engine
 
     async def resolve(self, request: CARPRequest) -> CARPResponse:
         """Resolve a CARP request.
@@ -61,6 +79,7 @@ class Resolver:
         Raises:
             SessionExpiredError: If the session has expired
             SessionNotFoundError: If the session doesn't exist
+            PolicyDeniedError: If policy denies the resolution
         """
         # Validate session
         session = await self._session_manager.get_session(request.session.session_id)
@@ -85,8 +104,39 @@ class Resolver:
             },
         )
 
-        # Perform resolution (currently returns a demo resolution)
-        resolution = await self._perform_resolution(request, session)
+        # Evaluate policies if engine is available
+        policy_decision = None
+        if self._policy_engine:
+            policy_context = PolicyContext(
+                session_id=request.session.session_id,
+                principal_type=request.session.principal.type.value,
+                principal_id=request.session.principal.id,
+                scopes=request.session.scopes,
+                risk_tier=request.payload.task.risk_tier.value,
+                goal=request.payload.task.goal,
+            )
+            policy_decision = self._policy_engine.evaluate(policy_context)
+
+            # If denied, emit event and raise
+            if policy_decision.effect == PolicyEffect.DENY:
+                await self._tracer.emit(
+                    event_type=EventType.CARP_POLICY_DENIED,
+                    trace_id=request.trace.trace_id,
+                    session_id=request.session.session_id,
+                    span_id=span_id,
+                    severity=Severity.WARN,
+                    payload={
+                        "rule_id": policy_decision.rule_id,
+                        "reason": policy_decision.reason,
+                        "violations": [v.model_dump() for v in policy_decision.violations],
+                    },
+                )
+                raise PolicyDeniedError(
+                    policy_decision.reason, policy_decision.rule_id
+                )
+
+        # Perform resolution
+        resolution = await self._perform_resolution(request, session, policy_decision)
 
         # Increment resolution count
         await self._session_manager.increment_resolution_count(request.session.session_id)
@@ -121,27 +171,30 @@ class Resolver:
                 "context_block_count": len(resolution.context_blocks),
                 "allowed_action_count": len(resolution.allowed_actions),
                 "deny_rule_count": len(resolution.denylist),
+                "requires_approval": any(a.requires_approval for a in resolution.allowed_actions),
+                "policy_effect": policy_decision.effect.value if policy_decision else "allow",
             },
         )
 
         return response
 
     async def _perform_resolution(
-        self, request: CARPRequest, session: Session
+        self,
+        request: CARPRequest,
+        session: Session,
+        policy_decision=None,
     ) -> Resolution:
         """Perform the actual resolution logic.
 
-        For Phase 0, this returns a demo resolution.
-        In Phase 1+, this will:
-        - Load relevant Atlas
-        - Evaluate policies
-        - Apply scopes and permissions
-        - Generate context blocks
-        - Determine allowed actions
+        Integrates with PolicyEngine for:
+        - Approval requirements
+        - Redactions
+        - Constraints
 
         Args:
             request: The CARP request
             session: The validated session
+            policy_decision: Optional policy decision
 
         Returns:
             The resolution result
@@ -149,7 +202,7 @@ class Resolver:
         task = request.payload.task
         resolution_id = uuid4()
 
-        # Demo context block based on the goal
+        # Build context blocks
         context_blocks = [
             ContextBlock(
                 block_id="cra-guidelines",
@@ -177,7 +230,33 @@ class Resolver:
             ),
         ]
 
-        # Demo allowed actions
+        # Add policy context block if there's a policy decision
+        if policy_decision:
+            policy_content = f"""## Policy Evaluation
+
+**Effect:** {policy_decision.effect.value}
+**Requires Approval:** {policy_decision.requires_approval}
+"""
+            if policy_decision.redactions:
+                policy_content += f"\n**Redacted Fields:** {', '.join(policy_decision.redactions)}"
+            if policy_decision.constraints:
+                policy_content += f"\n**Constraints:** {policy_decision.constraints}"
+
+            context_blocks.append(
+                ContextBlock(
+                    block_id="policy-context",
+                    purpose="Policy evaluation results",
+                    ttl_seconds=1800,
+                    content_type=ContentType.MARKDOWN,
+                    content=policy_content,
+                )
+            )
+
+        # Build allowed actions
+        requires_approval = (
+            policy_decision.requires_approval if policy_decision else False
+        ) or task.risk_tier.value == "high"
+
         allowed_actions = [
             AllowedAction(
                 action_id="cra.echo",
@@ -189,16 +268,19 @@ class Resolver:
                     "properties": {"message": {"type": "string"}},
                     "required": ["message"],
                 },
+                requires_approval=requires_approval,
+            ),
+            AllowedAction(
+                action_id="cra.noop",
+                kind=ActionKind.TOOL_CALL,
+                adapter="builtin",
+                description="No-operation action for testing",
+                json_schema={"type": "object", "properties": {}},
                 requires_approval=False,
             ),
         ]
 
-        # High-risk tasks require approval
-        if task.risk_tier.value == "high":
-            for action in allowed_actions:
-                action.requires_approval = True
-
-        # Demo deny rules
+        # Build deny rules from policy
         denylist = [
             DenyRule(
                 pattern="*.production.*",
@@ -210,8 +292,27 @@ class Resolver:
             ),
         ]
 
-        # Compute confidence (demo: based on task complexity)
-        confidence = 0.85 if task.risk_tier.value == "low" else 0.70
+        # Add deny rules from policy violations
+        if policy_decision and policy_decision.violations:
+            for violation in policy_decision.violations:
+                if violation.details.get("pattern"):
+                    denylist.append(
+                        DenyRule(
+                            pattern=violation.details["pattern"],
+                            reason=violation.reason,
+                        )
+                    )
+
+        # Compute confidence
+        confidence = 0.85
+        if task.risk_tier.value == "medium":
+            confidence = 0.75
+        elif task.risk_tier.value == "high":
+            confidence = 0.65
+
+        # Reduce confidence if policy added constraints
+        if policy_decision and policy_decision.effect == PolicyEffect.ALLOW_WITH_CONSTRAINTS:
+            confidence *= 0.9
 
         return Resolution(
             resolution_id=resolution_id,
@@ -222,10 +323,13 @@ class Resolver:
             merge_rules=MergeRules(),
             next_steps=[
                 NextStep(
-                    step="Review the allowed actions",
+                    step="Review the allowed actions and constraints",
                     expected_artifacts=["action_plan.md"],
                 ),
                 NextStep(
+                    step="Request approval if required",
+                    expected_artifacts=["approval_request.json"],
+                ) if requires_approval else NextStep(
                     step="Execute approved actions",
                     expected_artifacts=["execution_log.json"],
                 ),
@@ -250,8 +354,9 @@ class Resolver:
 ### Execution Protocol
 1. Request resolution for your task
 2. Review allowed actions and constraints
-3. Execute only approved actions
-4. Monitor TRACE output for confirmation
+3. Request approval if required
+4. Execute only approved actions
+5. Monitor TRACE output for confirmation
 
 ### Error Handling
 - If an action fails, check TRACE for details
@@ -264,9 +369,13 @@ class Resolver:
 _resolver: Resolver | None = None
 
 
-def get_resolver(tracer: Tracer, session_manager: SessionManager) -> Resolver:
+def get_resolver(
+    tracer: Tracer,
+    session_manager: SessionManager,
+    policy_engine: PolicyEngine | None = None,
+) -> Resolver:
     """Get the global resolver instance."""
     global _resolver
     if _resolver is None:
-        _resolver = Resolver(tracer, session_manager)
+        _resolver = Resolver(tracer, session_manager, policy_engine)
     return _resolver

@@ -8,6 +8,7 @@ from cra.runtime.api import (
     health_router,
     sessions_router,
     carp_router,
+    execute_router,
     traces_router,
 )
 
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
 
         - `POST /v1/sessions` - Create a new session
         - `POST /v1/carp/resolve` - Resolve context and actions
+        - `POST /v1/carp/execute` - Execute granted actions
         - `GET /v1/traces/{trace_id}/stream` - Stream TRACE events (SSE)
         """,
         version=__version__,
@@ -56,6 +58,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(sessions_router)
     app.include_router(carp_router)
+    app.include_router(execute_router)
     app.include_router(traces_router)
 
     return app
