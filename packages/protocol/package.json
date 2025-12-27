@@ -1,0 +1,39 @@
+{
+  "name": "@cra/protocol",
+  "version": "0.1.0",
+  "description": "CARP and TRACE protocol types and utilities",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./carp": {
+      "import": "./dist/carp/index.js",
+      "types": "./dist/carp/index.d.ts"
+    },
+    "./trace": {
+      "import": "./dist/trace/index.js",
+      "types": "./dist/trace/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.1.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

@@ -1,0 +1,43 @@
+/**
+ * CRA TRACE Package
+ *
+ * TRACE collector and event streaming for audit-grade telemetry.
+ */
+
+export { TRACECollector, loadTraceFile, replayTrace } from './collector.js';
+export type { CollectorOptions, SpanContext } from './collector.js';
+
+// Re-export protocol types
+export type {
+  TRACEEvent,
+  TRACEEventType,
+  Severity,
+  ArtifactReference,
+  ArtifactType,
+  Span,
+  SpanStatus,
+  SpanKind,
+  TraceDiff,
+  TraceDifference,
+  TraceFilter,
+  GoldenTraceTest,
+  GoldenTraceResult,
+} from '@cra/protocol';
+
+export {
+  TRACE_VERSION,
+  createEvent,
+  createArtifactReference,
+  createSpan,
+  completeSpan,
+  verifyEventHash,
+  verifyChain,
+  verifyArtifact,
+  toJsonl,
+  fromJsonl,
+  filterEvents,
+  diffTraces,
+  generateId,
+  getTimestamp,
+  computeHash,
+} from '@cra/protocol';

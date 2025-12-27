@@ -1,0 +1,32 @@
+{
+  "name": "@cra/runtime",
+  "version": "0.1.0",
+  "description": "CRA Runtime - CARP resolver and policy engine",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cra/protocol": "*",
+    "@cra/trace": "*",
+    "@cra/atlas": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vitest": "^1.1.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

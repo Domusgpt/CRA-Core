@@ -1,0 +1,43 @@
+{
+  "name": "@cra/adapters",
+  "version": "0.1.0",
+  "description": "Platform adapters for CRA (OpenAI, Claude, Google ADK, MCP)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./openai": {
+      "import": "./dist/openai.js",
+      "types": "./dist/openai.d.ts"
+    },
+    "./claude": {
+      "import": "./dist/claude.js",
+      "types": "./dist/claude.d.ts"
+    },
+    "./mcp": {
+      "import": "./dist/mcp.js",
+      "types": "./dist/mcp.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cra/protocol": "*",
+    "@cra/atlas": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vitest": "^1.1.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

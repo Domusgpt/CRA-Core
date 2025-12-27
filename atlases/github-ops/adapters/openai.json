@@ -1,0 +1,115 @@
+{
+  "platform": "openai",
+  "version": "1.0",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "github_create_issue",
+        "description": "Create a new issue in a GitHub repository",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string",
+              "description": "The account owner of the repository (username or org)"
+            },
+            "repo": {
+              "type": "string",
+              "description": "The name of the repository"
+            },
+            "title": {
+              "type": "string",
+              "description": "The title of the issue"
+            },
+            "body": {
+              "type": "string",
+              "description": "The contents of the issue (markdown supported)"
+            },
+            "labels": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Labels to associate with this issue"
+            },
+            "assignees": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Usernames to assign to this issue"
+            }
+          },
+          "required": ["owner", "repo", "title"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "github_close_issue",
+        "description": "Close an existing GitHub issue",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string",
+              "description": "The account owner of the repository"
+            },
+            "repo": {
+              "type": "string",
+              "description": "The name of the repository"
+            },
+            "issue_number": {
+              "type": "integer",
+              "description": "The issue number"
+            },
+            "comment": {
+              "type": "string",
+              "description": "Optional comment to add when closing"
+            }
+          },
+          "required": ["owner", "repo", "issue_number"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "github_create_pr",
+        "description": "Create a new pull request",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string",
+              "description": "The account owner of the repository"
+            },
+            "repo": {
+              "type": "string",
+              "description": "The name of the repository"
+            },
+            "title": {
+              "type": "string",
+              "description": "The title of the pull request"
+            },
+            "body": {
+              "type": "string",
+              "description": "The contents of the pull request"
+            },
+            "head": {
+              "type": "string",
+              "description": "The name of the branch where changes are implemented"
+            },
+            "base": {
+              "type": "string",
+              "description": "The name of the branch you want the changes pulled into"
+            },
+            "draft": {
+              "type": "boolean",
+              "description": "Whether to create the PR as a draft"
+            }
+          },
+          "required": ["owner", "repo", "title", "head", "base"]
+        }
+      }
+    }
+  ]
+}
