@@ -27,7 +27,6 @@ import {
   fromJsonl,
   verifyChain,
   resetSequence,
-  TRACE_VERSION,
 } from '@cra/protocol';
 
 export interface CollectorOptions {
@@ -115,9 +114,9 @@ export class TRACECollector extends EventEmitter {
   }
 
   /**
-   * Emit a TRACE event
+   * Record a TRACE event (renamed from emit to avoid EventEmitter conflict)
    */
-  emit(
+  record(
     eventType: TRACEEventType,
     payload: Record<string, unknown>,
     options: {
@@ -159,7 +158,7 @@ export class TRACECollector extends EventEmitter {
       }
     }
 
-    // Emit for streaming
+    // Emit for streaming via EventEmitter
     super.emit('event', event);
 
     // Flush if buffer full
@@ -187,8 +186,8 @@ export class TRACECollector extends EventEmitter {
 
     this.spans.set(span.span_id, { span, events: [] });
 
-    // Emit span start event
-    this.emit(
+    // Record span start event
+    this.record(
       `carp.${name.replace(/\./g, '_')}.started` as TRACEEventType,
       { span_name: name, ...options.attributes },
       { span_id: span.span_id, parent_span_id: options.parent_span_id }
@@ -220,8 +219,8 @@ export class TRACECollector extends EventEmitter {
     const duration = new Date(completedSpan.ended_at!).getTime() -
       new Date(completedSpan.started_at).getTime();
 
-    // Emit span end event
-    this.emit(
+    // Record span end event
+    this.record(
       `carp.${completedSpan.name.replace(/\./g, '_')}.completed` as TRACEEventType,
       {
         span_name: completedSpan.name,

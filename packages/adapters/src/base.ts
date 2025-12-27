@@ -5,7 +5,7 @@
  */
 
 import type { ActionPermission, ContextBlock, CARPResolution } from '@cra/protocol';
-import type { Platform, AdapterConfig, ActionDefinition } from '@cra/atlas';
+import type { Platform, AdapterConfig } from '@cra/atlas';
 
 // =============================================================================
 // Types

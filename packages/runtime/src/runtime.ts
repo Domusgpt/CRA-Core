@@ -12,13 +12,11 @@ import type {
   CARPActionRequest,
   CARPExecutionResult,
   CARPError,
-  CARPErrorCode,
   ContextBlock,
   ActionPermission,
   ActionDenial,
   Evidence,
   PolicyApplication,
-  TelemetryLink,
 } from '@cra/protocol';
 import {
   createResolution,
@@ -112,8 +110,8 @@ export class CRARuntime {
       uptime_ms: 0,
     };
 
-    // Emit session start event
-    this.trace.emit('session.started', {
+    // Record session start event
+    this.trace.record('session.started', {
       session_id: this.config.session_id,
       config: this.config,
     });
@@ -142,13 +140,13 @@ export class CRARuntime {
     });
 
     try {
-      this.trace.emit('atlas.load.started', { source }, { span_id: span.span_id });
+      this.trace.record('atlas.load.started', { source }, { span_id: span.span_id });
 
       const atlas = await this.atlasLoader.load(source);
       this.loadedAtlases.set(atlas.ref, atlas);
       this.stats.atlases_loaded++;
 
-      this.trace.emit(
+      this.trace.record(
         'atlas.load.completed',
         {
           atlas_ref: atlas.ref,
@@ -163,12 +161,12 @@ export class CRARuntime {
       this.trace.endSpan(span.span_id, 'ok');
       return atlas;
     } catch (error) {
-      this.trace.emit(
+      this.trace.record(
         'atlas.load.failed',
         { source, error: String(error) },
         { span_id: span.span_id, severity: 'error' }
       );
-      this.trace.endSpan(span.span_id, 'error', String(error));
+      this.trace.endSpan(span.span_id, 'error', { message: String(error) });
       throw error;
     }
   }
@@ -186,8 +184,8 @@ export class CRARuntime {
     });
 
     try {
-      // Emit request received
-      this.trace.emit(
+      // Record request received
+      this.trace.record(
         'carp.request.received',
         {
           request_id: request.request_id,
@@ -208,17 +206,17 @@ export class CRARuntime {
           `Request validation failed: ${validation.errors.join(', ')}`,
           { details: { errors: validation.errors } }
         );
-        this.trace.endSpan(span.span_id, 'error', 'Validation failed');
+        this.trace.endSpan(span.span_id, 'error', { message: 'Validation failed' });
         return error;
       }
 
-      this.trace.emit('carp.request.validated', { request_id: request.request_id }, { span_id: span.span_id });
+      this.trace.record('carp.request.validated', { request_id: request.request_id }, { span_id: span.span_id });
 
       // Check resolution cache
       const cacheKey = this.getResolutionCacheKey(request);
       const cached = this.resolutionCache.get(cacheKey);
       if (cached && !isResolutionExpired(cached)) {
-        this.trace.emit(
+        this.trace.record(
           'carp.resolution.cache_hit',
           { resolution_id: cached.resolution_id },
           { span_id: span.span_id }
@@ -228,7 +226,7 @@ export class CRARuntime {
       }
 
       // Start resolution
-      this.trace.emit('carp.resolution.started', { request_id: request.request_id }, { span_id: span.span_id });
+      this.trace.record('carp.resolution.started', { request_id: request.request_id }, { span_id: span.span_id });
       this.stats.resolutions_total++;
 
       // Get applicable atlases
@@ -241,12 +239,12 @@ export class CRARuntime {
           { trace_id: this.trace.getTraceId() }
         );
         this.stats.resolutions_denied++;
-        this.trace.endSpan(span.span_id, 'error', 'No atlases');
+        this.trace.endSpan(span.span_id, 'error', { message: 'No atlases' });
         return error;
       }
 
       for (const atlas of atlases) {
-        this.trace.emit(
+        this.trace.record(
           'carp.atlas.loaded',
           { atlas_ref: atlas.ref },
           { span_id: span.span_id }
@@ -293,8 +291,8 @@ export class CRARuntime {
       // Cache resolution
       this.resolutionCache.set(cacheKey, resolution);
 
-      // Emit completion
-      this.trace.emit(
+      // Record completion
+      this.trace.record(
         'carp.resolution.completed',
         {
           request_id: request.request_id,
@@ -311,12 +309,12 @@ export class CRARuntime {
       this.trace.endSpan(span.span_id, 'ok');
       return resolution;
     } catch (error) {
-      this.trace.emit(
+      this.trace.record(
         'error.internal',
         { request_id: request.request_id, error: String(error) },
         { span_id: span.span_id, severity: 'error' }
       );
-      this.trace.endSpan(span.span_id, 'error', String(error));
+      this.trace.endSpan(span.span_id, 'error', { message: String(error) });
 
       return createError(
         request.request_id,
@@ -339,7 +337,7 @@ export class CRARuntime {
     });
 
     try {
-      this.trace.emit(
+      this.trace.record(
         'carp.action.requested',
         {
           action_id: request.action.action_id,
@@ -358,7 +356,7 @@ export class CRARuntime {
           `Resolution ${request.action.resolution_id} not found`,
           { trace_id: this.trace.getTraceId() }
         );
-        this.trace.endSpan(span.span_id, 'error', 'Resolution not found');
+        this.trace.endSpan(span.span_id, 'error', { message: 'Resolution not found' });
         return error;
       }
 
@@ -369,7 +367,7 @@ export class CRARuntime {
           `Resolution ${request.action.resolution_id} has expired`,
           { trace_id: this.trace.getTraceId() }
         );
-        this.trace.endSpan(span.span_id, 'error', 'Resolution expired');
+        this.trace.endSpan(span.span_id, 'error', { message: 'Resolution expired' });
         return error;
       }
 
@@ -379,7 +377,7 @@ export class CRARuntime {
       );
 
       if (!permission) {
-        this.trace.emit(
+        this.trace.record(
           'carp.action.denied',
           { action_id: request.action.action_id, reason: 'Not in allowed_actions' },
           { span_id: span.span_id, severity: 'warn' }
@@ -392,20 +390,20 @@ export class CRARuntime {
           `Action ${request.action.action_id} is not permitted`,
           { trace_id: this.trace.getTraceId() }
         );
-        this.trace.endSpan(span.span_id, 'error', 'Action not permitted');
+        this.trace.endSpan(span.span_id, 'error', { message: 'Action not permitted' });
         return error;
       }
 
       // Check approval requirement
       if (permission.requires_approval) {
-        this.trace.emit(
+        this.trace.record(
           'carp.action.approval.pending',
           { action_id: request.action.action_id },
           { span_id: span.span_id }
         );
 
         // For now, auto-approve (in production, this would wait for approval)
-        this.trace.emit(
+        this.trace.record(
           'carp.action.approved',
           { action_id: request.action.action_id, approver: 'auto' },
           { span_id: span.span_id }
@@ -413,7 +411,7 @@ export class CRARuntime {
       }
 
       // Execute action
-      this.trace.emit(
+      this.trace.record(
         'carp.action.started',
         {
           action_id: request.action.action_id,
@@ -431,7 +429,7 @@ export class CRARuntime {
       const duration = Date.now() - startTime;
       this.stats.actions_executed++;
 
-      this.trace.emit(
+      this.trace.record(
         'carp.action.completed',
         {
           action_id: request.action.action_id,
@@ -445,12 +443,12 @@ export class CRARuntime {
       return result;
     } catch (error) {
       this.stats.actions_failed++;
-      this.trace.emit(
+      this.trace.record(
         'carp.action.failed',
         { action_id: request.action.action_id, error: String(error) },
         { span_id: span.span_id, severity: 'error' }
       );
-      this.trace.endSpan(span.span_id, 'error', String(error));
+      this.trace.endSpan(span.span_id, 'error', { message: String(error) });
 
       return createError(
         request.request_id,
@@ -475,7 +473,7 @@ export class CRARuntime {
    * Shutdown the runtime
    */
   async shutdown(): Promise<void> {
-    this.trace.emit('session.ended', {
+    this.trace.record('session.ended', {
       session_id: this.config.session_id,
       stats: this.getStats(),
     });
@@ -527,7 +525,7 @@ export class CRARuntime {
     const maxTokens = request.scope?.max_context_tokens ?? this.config.max_context_tokens;
     let totalTokens = 0;
 
-    this.trace.emit(
+    this.trace.record(
       'carp.context.selected',
       { atlases: atlases.map(a => a.ref), max_tokens: maxTokens },
       { span_id: spanId }
@@ -547,7 +545,7 @@ export class CRARuntime {
       }
     }
 
-    this.trace.emit(
+    this.trace.record(
       'carp.context.assembled',
       {
         block_count: allBlocks.length,
@@ -582,7 +580,7 @@ export class CRARuntime {
       }
     }
 
-    this.trace.emit(
+    this.trace.record(
       'carp.actions.resolved',
       {
         allowed_count: allowed.length,
@@ -607,7 +605,7 @@ export class CRARuntime {
     let allowed = true;
     let requiresApproval = false;
 
-    this.trace.emit('carp.policy.evaluation.started', {}, { span_id: spanId });
+    this.trace.record('carp.policy.evaluation.started', {}, { span_id: spanId });
 
     for (const atlas of atlases) {
       const result = this.atlasLoader.evaluatePolicies(atlas, {
@@ -623,7 +621,7 @@ export class CRARuntime {
       }
 
       for (const match of result.matched_rules) {
-        this.trace.emit(
+        this.trace.record(
           'carp.policy.rule.matched',
           { policy_id: match.policy_id, rule_id: match.rule_id, effect: match.effect },
           { span_id: spanId }
@@ -654,7 +652,7 @@ export class CRARuntime {
       }
     }
 
-    this.trace.emit(
+    this.trace.record(
       'carp.policy.evaluation.completed',
       {
         allowed,
@@ -684,7 +682,7 @@ export class CRARuntime {
       });
     }
 
-    this.trace.emit(
+    this.trace.record(
       'carp.evidence.gathered',
       { evidence_count: evidence.length },
       { span_id: spanId }
@@ -697,7 +695,7 @@ export class CRARuntime {
     request: CARPRequest,
     policyResults: { allowed: boolean; requires_approval: boolean },
     allowed: ActionPermission[],
-    denied: ActionDenial[]
+    _denied: ActionDenial[]
   ): CARPDecision {
     if (!policyResults.allowed) {
       return {

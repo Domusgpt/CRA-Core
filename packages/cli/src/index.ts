@@ -12,9 +12,9 @@ import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CRARuntime, createRequest } from '@cra/runtime';
-import { loadTraceFile, replayTrace, TRACECollector, diffTraces } from '@cra/trace';
+import { loadTraceFile, replayTrace, diffTraces } from '@cra/trace';
 import { AtlasLoader } from '@cra/atlas';
-import type { TRACEEvent, CARPRequest } from '@cra/protocol';
+import type { TRACEEvent } from '@cra/protocol';
 
 // =============================================================================
 // CLI Setup
@@ -176,7 +176,7 @@ program
   .option('-r, --resolution <id>', 'Resolution ID (required)')
   .option('-p, --params <json>', 'Action parameters as JSON')
   .option('-j, --json', 'Output as JSON')
-  .action(async (actionId, options) => {
+  .action(async (_actionId, options) => {
     if (!options.resolution) {
       console.error(chalk.red('Error: --resolution is required'));
       process.exit(1);
