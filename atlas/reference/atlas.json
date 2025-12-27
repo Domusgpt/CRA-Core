@@ -1,0 +1,18 @@
+{
+  "atlas_version": "0.1",
+  "id": "cra.reference",
+  "name": "Reference CRA Atlas",
+  "version": "0.1.0",
+  "publisher": {"id": "cra", "name": "CRA Core Team"},
+  "capabilities": [
+    {"id": "cap.resolve", "tags": ["devtools", "example"], "risk_tier": "low"}
+  ],
+  "platform_adapters": ["openai.tools", "anthropic.skills", "google.adk", "mcp"],
+  "licensing": {"model": "free"},
+  "carp": {"min_version": "1.0"},
+  "trace": {"min_version": "1.0"},
+  "adapters": {
+    "openai.tools": {"actions": [{"name": "fetch_repo_status", "schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}]},
+    "anthropic.skills": {"actions": [{"name": "summarize_context", "schema": {"type": "object", "properties": {"content": {"type": "string"}}, "required": ["content"]}}]}
+  }
+}
