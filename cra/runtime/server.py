@@ -10,6 +10,7 @@ from cra.runtime.api import (
     carp_router,
     execute_router,
     traces_router,
+    atlas_router,
 )
 
 
@@ -39,6 +40,8 @@ def create_app() -> FastAPI:
         - `POST /v1/carp/resolve` - Resolve context and actions
         - `POST /v1/carp/execute` - Execute granted actions
         - `GET /v1/traces/{trace_id}/stream` - Stream TRACE events (SSE)
+        - `GET /v1/atlases` - List registered Atlases
+        - `POST /v1/atlases/load` - Load an Atlas
         """,
         version=__version__,
         docs_url="/docs",
@@ -60,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(carp_router)
     app.include_router(execute_router)
     app.include_router(traces_router)
+    app.include_router(atlas_router)
 
     return app
 
