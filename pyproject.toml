@@ -15,11 +15,33 @@ python = "^3.11"
 fastapi = "^0.115.0"
 uvicorn = {extras = ["standard"], version = "^0.32.0"}
 pydantic = "^2.10.0"
+pydantic-settings = "^2.6.0"
 typer = {extras = ["all"], version = "^0.15.0"}
 rich = "^13.9.0"
 httpx = "^0.28.0"
 sse-starlette = "^2.2.0"
 python-ulid = "^3.0.0"
+PyJWT = "^2.9.0"
+python-dotenv = "^1.0.0"
+
+# Optional dependencies for production
+asyncpg = {version = "^0.30.0", optional = true}
+opentelemetry-api = {version = "^1.28.0", optional = true}
+opentelemetry-sdk = {version = "^1.28.0", optional = true}
+opentelemetry-exporter-otlp-proto-grpc = {version = "^1.28.0", optional = true}
+
+# Optional dependencies for agent frameworks
+langchain = {version = "^0.3.0", optional = true}
+langchain-openai = {version = "^0.2.0", optional = true}
+langgraph = {version = "^0.2.0", optional = true}
+crewai = {version = "^0.80.0", optional = true}
+
+[tool.poetry.extras]
+postgres = ["asyncpg"]
+otel = ["opentelemetry-api", "opentelemetry-sdk", "opentelemetry-exporter-otlp-proto-grpc"]
+langchain = ["langchain", "langchain-openai", "langgraph"]
+crewai = ["crewai"]
+all = ["asyncpg", "opentelemetry-api", "opentelemetry-sdk", "opentelemetry-exporter-otlp-proto-grpc", "langchain", "langchain-openai", "langgraph", "crewai"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
