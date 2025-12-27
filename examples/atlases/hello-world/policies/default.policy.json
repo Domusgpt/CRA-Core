@@ -1,0 +1,39 @@
+{
+  "policy_version": "1.0",
+  "id": "hello-world-default",
+  "name": "Default Hello World Policy",
+  "rules": [
+    {
+      "id": "allow-greeting-send",
+      "effect": "allow",
+      "actions": ["greeting.send"],
+      "conditions": []
+    },
+    {
+      "id": "require-admin-for-customize",
+      "effect": "allow",
+      "actions": ["greeting.customize"],
+      "conditions": [
+        {
+          "type": "scope",
+          "value": "greeting.admin"
+        }
+      ]
+    },
+    {
+      "id": "deny-inappropriate",
+      "effect": "deny",
+      "actions": ["*"],
+      "conditions": [
+        {
+          "type": "content_filter",
+          "patterns": ["profanity", "harassment"]
+        }
+      ]
+    }
+  ],
+  "defaults": {
+    "effect": "deny",
+    "reason": "Action not explicitly allowed"
+  }
+}

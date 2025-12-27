@@ -1,0 +1,40 @@
+{
+  "api_version": "1.0",
+  "endpoints": {
+    "greeting.send": {
+      "description": "Send a greeting message",
+      "parameters": {
+        "message": {
+          "type": "string",
+          "required": true,
+          "max_length": 1000
+        },
+        "recipient": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "sent": {"type": "boolean"},
+          "timestamp": {"type": "string", "format": "date-time"}
+        }
+      }
+    },
+    "greeting.customize": {
+      "description": "Customize a greeting template",
+      "parameters": {
+        "template_id": {
+          "type": "string",
+          "required": true
+        },
+        "template_content": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "requires_scope": "greeting.admin"
+    }
+  }
+}

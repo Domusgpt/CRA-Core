@@ -1,0 +1,54 @@
+[tool.poetry]
+name = "cra-core"
+version = "0.1.0"
+description = "Context Registry Agents - Governed context layer for AI agents"
+authors = ["CRA Team"]
+readme = "README.md"
+license = "MIT"
+packages = [{include = "cra"}]
+
+[tool.poetry.scripts]
+cra = "cra.cli.main:app"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+pydantic = "^2.10.0"
+typer = {extras = ["all"], version = "^0.15.0"}
+rich = "^13.9.0"
+httpx = "^0.28.0"
+sse-starlette = "^2.2.0"
+python-ulid = "^3.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-asyncio = "^0.25.0"
+pytest-cov = "^6.0.0"
+ruff = "^0.8.0"
+mypy = "^1.13.0"
+hypothesis = "^6.120.0"
+httpx = "^0.28.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]  # Line length handled separately
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --cov=cra --cov-report=term-missing"
