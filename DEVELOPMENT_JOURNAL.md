@@ -819,4 +819,66 @@ I'll add example code showing how to wrap the core with HTTP.
 
 ---
 
+## 12. Enhanced Python Bindings (2025-12-28)
+
+### What Changed
+
+Rewrote Python bindings to return **proper Python objects** instead of just JSON strings.
+
+### Before (JSON-only)
+```python
+resolution = resolver.resolve(session_id, agent_id, goal)
+# resolution is a JSON string - need to parse it
+data = json.loads(resolution)
+```
+
+### After (Python objects)
+```python
+resolution = resolver.resolve(session_id, agent_id, goal)
+
+# Proper Python objects with attributes
+print(resolution.decision)           # "allow", "deny", "partial"
+print(resolution.is_allowed)         # True/False property
+print(resolution.allowed_actions)    # List of AllowedAction objects
+
+# Access action details
+for action in resolution.allowed_actions:
+    print(f"{action.action_id}: {action.description}")
+    print(f"Risk: {action.risk_tier}")
+
+# Check specific action
+if resolution.is_action_allowed("data.get"):
+    print("data.get is available")
+
+# Trace events as objects
+for event in resolver.get_trace_events(session_id):
+    print(f"{event.event_type}: seq={event.sequence}")
+    payload = event.get_payload_dict()  # Python dict
+
+# Chain verification with proper boolean
+if resolver.verify_chain(session_id):
+    print("Chain is valid")
+```
+
+### New Python Classes
+
+| Class | Purpose |
+|-------|---------|
+| `Resolver` | Main interface (unchanged) |
+| `CARPResolution` | Resolution with properties |
+| `AllowedAction` | Action with attributes |
+| `DeniedAction` | Denied action with reason |
+| `TRACEEvent` | Event with payload access |
+| `ChainVerification` | Verification with bool support |
+
+### Key Improvements
+
+1. **Type safety**: Python objects have proper attributes
+2. **IDE support**: Autocomplete works with classes
+3. **Pythonic**: `if verification:` works (implements `__bool__`)
+4. **Repr**: `print(action)` shows useful info
+5. **Backwards compatible**: `resolve_json()` still available
+
+---
+
 *Journal continues as development progresses...*
