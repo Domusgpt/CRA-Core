@@ -88,9 +88,13 @@ pub enum CRAError {
     #[error("JSON serialization error: {0}")]
     JsonError(#[from] serde_json::Error),
 
+    // Storage errors
+    #[error("Storage backend lock poisoned")]
+    StorageLocked,
+
     // IO errors
-    #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
+    #[error("IO error: {message}")]
+    IoError { message: String },
 
     // Internal errors
     #[error("Internal error: {reason}")]
@@ -140,7 +144,8 @@ impl CRAError {
             CRAError::InvalidParameters { .. } => "INVALID_PARAMETERS",
             CRAError::ExecutionError { .. } => "EXECUTION_ERROR",
             CRAError::JsonError(_) => "JSON_ERROR",
-            CRAError::IoError(_) => "IO_ERROR",
+            CRAError::StorageLocked => "STORAGE_LOCKED",
+            CRAError::IoError { .. } => "IO_ERROR",
             CRAError::InternalError { .. } => "INTERNAL_ERROR",
         }
     }

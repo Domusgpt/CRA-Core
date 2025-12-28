@@ -881,4 +881,102 @@ if resolver.verify_chain(session_id):
 
 ---
 
+## 13. Pluggable Storage Backend (2025-12-28)
+
+### Motivation
+
+The original implementation stored all traces in-memory within the `TraceCollector`. This had limitations:
+
+1. No persistence across restarts
+2. No way to swap storage for different environments
+3. Testing required managing the collector's internal state
+
+### Solution: Storage Trait
+
+Created a pluggable `StorageBackend` trait in `cra-core/src/storage/mod.rs`:
+
+```rust
+pub trait StorageBackend: Send + Sync {
+    fn store_event(&self, event: &TRACEEvent) -> Result<()>;
+    fn get_events(&self, session_id: &str) -> Result<Vec<TRACEEvent>>;
+    fn get_events_by_type(&self, session_id: &str, event_type: &str) -> Result<Vec<TRACEEvent>>;
+    fn get_last_events(&self, session_id: &str, n: usize) -> Result<Vec<TRACEEvent>>;
+    fn get_event_count(&self, session_id: &str) -> Result<usize>;
+    fn delete_session(&self, session_id: &str) -> Result<()>;
+    fn health_check(&self) -> Result<()>;
+    fn name(&self) -> &'static str;
+}
+```
+
+### Implementations
+
+Three storage backends included out of the box:
+
+| Backend | Use Case | Characteristics |
+|---------|----------|-----------------|
+| `InMemoryStorage` | Default, testing | Fast, thread-safe via RwLock, no persistence |
+| `FileStorage` | Development, debugging | JSONL files per session, human-readable |
+| `NullStorage` | Testing, high-performance | Discards all events, zero overhead |
+
+### Example Usage
+
+```rust
+use cra_core::storage::{StorageBackend, InMemoryStorage, FileStorage};
+
+// Default in-memory storage
+let storage = InMemoryStorage::new();
+
+// File-based storage
+let storage = FileStorage::new("/var/cra/traces")?;
+
+// Custom backend (e.g., PostgreSQL)
+struct PostgresStorage { pool: PgPool }
+impl StorageBackend for PostgresStorage {
+    // ... implement trait methods
+}
+```
+
+### Error Handling
+
+Added `StorageLocked` error variant for RwLock poisoning:
+
+```rust
+#[error("Storage backend lock poisoned")]
+StorageLocked,
+```
+
+This is a recoverable error - retry is possible after short delay.
+
+### Design Decisions
+
+1. **`&self` instead of `&mut self`**: All methods take `&self` to allow interior mutability patterns (RwLock, Mutex). This enables sharing storage across threads.
+
+2. **Per-session organization**: Storage is organized by session_id. This maps naturally to the TRACE spec where each session has an independent hash chain.
+
+3. **JSONL for FileStorage**: Newline-delimited JSON is easy to parse, append-only friendly, and human-readable for debugging.
+
+4. **`Send + Sync` bound**: Required for thread-safe storage sharing. All provided implementations satisfy this.
+
+### Test Results
+
+```
+test storage::tests::test_in_memory_storage ... ok
+test storage::tests::test_file_storage ... ok
+test storage::tests::test_null_storage ... ok
+```
+
+**Total: 80 tests passing** (71 unit + 7 conformance + 2 doc tests)
+
+### Future Work
+
+The storage trait is designed for extension. Planned backends:
+
+- `SqliteStorage` - Embedded database for single-node deployments
+- `PostgresStorage` - Shared storage for distributed deployments
+- `RedisStorage` - Fast ephemeral storage with TTL support
+
+These will be in separate crates (`cra-storage-sqlite`, etc.) to avoid adding dependencies to core.
+
+---
+
 *Journal continues as development progresses...*

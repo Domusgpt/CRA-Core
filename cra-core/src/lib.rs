@@ -63,6 +63,7 @@ pub mod carp;
 pub mod trace;
 pub mod atlas;
 pub mod error;
+pub mod storage;
 
 #[cfg(feature = "ffi")]
 pub mod ffi;
@@ -80,6 +81,7 @@ pub use atlas::{
     AtlasLoader,
 };
 pub use error::{CRAError, Result};
+pub use storage::{StorageBackend, InMemoryStorage, FileStorage, NullStorage};
 
 /// Protocol version constants
 pub const CARP_VERSION: &str = "1.0";
