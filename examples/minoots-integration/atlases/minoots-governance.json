@@ -1,0 +1,171 @@
+{
+  "atlas_version": "1.0",
+  "atlas_id": "com.minoots.timer-governance",
+  "version": "1.0.0",
+  "name": "MINOOTS Timer Governance",
+  "description": "CRA Atlas for governing MINOOTS timer actions - webhooks, CLI commands, and file operations",
+  "domains": ["minoots", "timers", "scheduling"],
+
+  "capabilities": [
+    {
+      "capability_id": "minoots.webhook",
+      "name": "Webhook Execution",
+      "description": "Execute HTTP webhooks when timers fire",
+      "actions": ["minoots.webhook.execute", "minoots.webhook.retry"]
+    },
+    {
+      "capability_id": "minoots.cli",
+      "name": "CLI Command Execution",
+      "description": "Execute shell commands when timers fire",
+      "actions": ["minoots.cli.execute"]
+    },
+    {
+      "capability_id": "minoots.file",
+      "name": "File Operations",
+      "description": "Write files when timers fire",
+      "actions": ["minoots.file.write", "minoots.file.append"]
+    }
+  ],
+
+  "policies": [
+    {
+      "policy_id": "rate-limit-webhooks",
+      "type": "rate_limit",
+      "description": "Limit webhook executions to prevent abuse",
+      "actions": ["minoots.webhook.*"],
+      "parameters": {
+        "max_calls": 100,
+        "window_seconds": 60
+      }
+    },
+    {
+      "policy_id": "deny-dangerous-cli",
+      "type": "deny",
+      "description": "Block dangerous shell commands",
+      "actions": ["minoots.cli.execute"],
+      "conditions": {
+        "command_pattern": "(rm -rf|sudo|chmod 777|curl.*\\|.*sh)"
+      },
+      "reason": "Dangerous command patterns are not allowed"
+    },
+    {
+      "policy_id": "require-approval-external-webhooks",
+      "type": "approval",
+      "description": "External webhooks require approval",
+      "actions": ["minoots.webhook.execute"],
+      "conditions": {
+        "url_pattern": "^https?://(?!localhost|127\\.0\\.0\\.1|internal\\.).*"
+      },
+      "reason": "External webhook targets require approval"
+    },
+    {
+      "policy_id": "business-hours-cli",
+      "type": "temporal",
+      "description": "CLI commands only during business hours",
+      "actions": ["minoots.cli.execute"],
+      "parameters": {
+        "allowed_hours": "09:00-18:00",
+        "timezone": "UTC",
+        "allowed_days": ["mon", "tue", "wed", "thu", "fri"]
+      },
+      "reason": "CLI execution restricted to business hours"
+    },
+    {
+      "policy_id": "file-write-paths",
+      "type": "allow",
+      "description": "Allow file writes only to safe directories",
+      "actions": ["minoots.file.write", "minoots.file.append"],
+      "conditions": {
+        "path_pattern": "^(/tmp/minoots/|/var/log/minoots/|./output/)"
+      }
+    }
+  ],
+
+  "actions": [
+    {
+      "action_id": "minoots.webhook.execute",
+      "name": "Execute Webhook",
+      "description": "Send HTTP request to configured webhook URL",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["url", "method"],
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "method": { "type": "string", "enum": ["GET", "POST", "PUT", "DELETE"] },
+          "headers": { "type": "object" },
+          "body": { "type": "object" },
+          "timeout_ms": { "type": "integer", "default": 30000 }
+        }
+      },
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "minoots.webhook.retry",
+      "name": "Retry Webhook",
+      "description": "Retry a failed webhook execution",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["original_timer_id"],
+        "properties": {
+          "original_timer_id": { "type": "string" },
+          "attempt_number": { "type": "integer" }
+        }
+      },
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "minoots.cli.execute",
+      "name": "Execute CLI Command",
+      "description": "Run a shell command",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["command"],
+        "properties": {
+          "command": { "type": "string" },
+          "working_dir": { "type": "string" },
+          "timeout_seconds": { "type": "integer", "default": 60 },
+          "env": { "type": "object" }
+        }
+      },
+      "risk_tier": "high"
+    },
+    {
+      "action_id": "minoots.file.write",
+      "name": "Write File",
+      "description": "Write content to a file (overwrites)",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["path", "content"],
+        "properties": {
+          "path": { "type": "string" },
+          "content": { "type": "string" },
+          "encoding": { "type": "string", "default": "utf-8" }
+        }
+      },
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "minoots.file.append",
+      "name": "Append to File",
+      "description": "Append content to a file",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["path", "content"],
+        "properties": {
+          "path": { "type": "string" },
+          "content": { "type": "string" }
+        }
+      },
+      "risk_tier": "low"
+    }
+  ],
+
+  "context_blocks": [
+    {
+      "block_id": "minoots-integration-guide",
+      "title": "MINOOTS Timer Integration",
+      "content": "When executing timer actions, always check CRA policies first. The action orchestrator should call /v1/resolve before executing any webhook, CLI command, or file operation. Respect rate limits and business hour restrictions.",
+      "priority": 100
+    }
+  ]
+}

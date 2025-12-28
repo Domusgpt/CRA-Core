@@ -1,0 +1,39 @@
+# CRA Server Docker Image
+#
+# Builds the cra-server binary for the MINOOTS integration demo
+
+FROM rust:1.75 AS builder
+
+WORKDIR /build
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY cra-core ./cra-core
+COPY cra-server ./cra-server
+COPY cra-python ./cra-python
+COPY cra-node ./cra-node
+COPY cra-wasm ./cra-wasm
+
+# Build release binary
+RUN cargo build --release -p cra-server
+
+# Runtime image
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /build/target/release/cra-server /usr/local/bin/cra-server
+
+# Create atlas directory
+RUN mkdir -p /atlases
+
+ENV CRA_PORT=8420
+ENV CRA_ATLAS_DIR=/atlases
+ENV RUST_LOG=info
+
+EXPOSE 8420
+
+CMD ["cra-server"]

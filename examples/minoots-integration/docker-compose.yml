@@ -1,0 +1,80 @@
+version: '3.8'
+
+# CRA + MINOOTS Integration Demo
+#
+# This Compose file provides the CRA side of the integration.
+# MINOOTS services should be added or run separately.
+#
+# Usage:
+#   docker-compose up -d
+#   # CRA server available at http://localhost:8420
+
+services:
+  # CRA Server - Governance layer
+  cra-server:
+    build:
+      context: ../..
+      dockerfile: examples/minoots-integration/Dockerfile.cra-server
+    ports:
+      - "8420:8420"
+    environment:
+      - CRA_PORT=8420
+      - CRA_ATLAS_DIR=/atlases
+      - RUST_LOG=info,cra_server=debug
+    volumes:
+      - ./atlases:/atlases:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8420/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - cra-minoots
+
+  # Webhook test server (for demo purposes)
+  webhook-receiver:
+    image: node:20-alpine
+    command: >
+      sh -c "
+        cat > /app/server.js << 'EOF'
+        const http = require('http');
+        const server = http.createServer((req, res) => {
+          let body = '';
+          req.on('data', chunk => body += chunk);
+          req.on('end', () => {
+            console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+            console.log('Headers:', JSON.stringify(req.headers, null, 2));
+            if (body) console.log('Body:', body);
+            res.writeHead(200, {'Content-Type': 'application/json'});
+            res.end(JSON.stringify({received: true, timestamp: new Date().toISOString()}));
+          });
+        });
+        server.listen(3000, () => console.log('Webhook receiver on :3000'));
+        EOF
+        node /app/server.js
+      "
+    ports:
+      - "3000:3000"
+    networks:
+      - cra-minoots
+
+networks:
+  cra-minoots:
+    name: cra-minoots-network
+    driver: bridge
+
+# For full integration, MINOOTS services connect to this network:
+#
+# # In MINOOTS docker-compose.yml, add:
+# networks:
+#   cra-minoots:
+#     external: true
+#     name: cra-minoots-network
+#
+# # And configure action-orchestrator:
+# action-orchestrator:
+#   environment:
+#     - CRA_ENDPOINT=http://cra-server:8420
+#     - CRA_ENABLED=true
+#   networks:
+#     - cra-minoots
