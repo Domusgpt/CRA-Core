@@ -979,4 +979,114 @@ These will be in separate crates (`cra-storage-sqlite`, etc.) to avoid adding de
 
 ---
 
+## 14. Enhanced Error Handling (2025-12-28)
+
+### Improvements Made
+
+Rewrote the error module with production-grade features:
+
+#### 1. Error Categories
+
+Added `ErrorCategory` enum for grouping related errors:
+
+```rust
+pub enum ErrorCategory {
+    NotFound,       // 404 - Resource not found
+    Validation,     // 400 - Invalid input
+    Authorization,  // 403 - Access denied
+    Conflict,       // 409 - State conflict
+    RateLimit,      // 429 - Rate limited
+    Integrity,      // 422 - Data integrity error
+    Internal,       // 500 - Server error
+    External,       // 502 - External dependency error
+}
+```
+
+#### 2. HTTP Status Codes
+
+Each error maps to an appropriate HTTP status:
+
+| Category | Status | Examples |
+|----------|--------|----------|
+| NotFound | 404 | SessionNotFound, AtlasNotFound, ActionNotFound |
+| Authorization | 403 | ActionDenied |
+| RateLimit | 429 | RateLimitExceeded |
+| Conflict | 409 | SessionAlreadyExists, AtlasAlreadyLoaded |
+
+#### 3. JSON Error Response
+
+New `to_error_response()` method for API integration:
+
+```json
+{
+  "error": {
+    "code": "SESSION_NOT_FOUND",
+    "message": "Session not found: 'abc123'. Create a session with create_session() first.",
+    "category": "not_found",
+    "recoverable": false
+  }
+}
+```
+
+#### 4. Actionable Error Messages
+
+Before:
+```
+Session not found: test-123
+```
+
+After:
+```
+Session not found: 'test-123'. Create a session with create_session() first.
+```
+
+Every error message now includes:
+- The specific value that caused the error (quoted for clarity)
+- A hint about what to do next
+
+#### 5. New Helper Methods
+
+```rust
+impl CRAError {
+    fn is_recoverable(&self) -> bool;   // Retry might help
+    fn is_permanent_denial(&self) -> bool;  // Never retry
+    fn is_client_error(&self) -> bool;  // 4xx
+    fn is_server_error(&self) -> bool;  // 5xx
+    fn category(&self) -> ErrorCategory;
+    fn http_status_code(&self) -> u16;
+    fn to_error_response(&self) -> ErrorResponse;
+}
+```
+
+### Design Rationale
+
+1. **Stable error codes**: `error_code()` returns strings like `SESSION_NOT_FOUND` that remain stable across versions. Clients can switch on these for specific handling.
+
+2. **Categories enable generic handling**: Instead of matching every error variant, clients can match on categories:
+   ```rust
+   match err.category() {
+       ErrorCategory::NotFound => show_not_found_page(),
+       ErrorCategory::Authorization => prompt_login(),
+       _ => show_generic_error(),
+   }
+   ```
+
+3. **HTTP codes follow REST conventions**: Makes it trivial to build HTTP wrappers around the core.
+
+### Test Results
+
+```
+test error::tests::test_error_categories ... ok
+test error::tests::test_error_codes ... ok
+test error::tests::test_error_is_recoverable ... ok
+test error::tests::test_error_messages_are_helpful ... ok
+test error::tests::test_error_response_serialization ... ok
+test error::tests::test_http_status_codes ... ok
+test error::tests::test_is_client_server_error ... ok
+```
+
+**Total: 86 tests passing** (76 unit + 7 conformance + 3 doc tests)
+
+---
+
 *Journal continues as development progresses...*

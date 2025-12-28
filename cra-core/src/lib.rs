@@ -80,7 +80,7 @@ pub use atlas::{
     AtlasManifest, AtlasAction, AtlasPolicy, AtlasCapability, PolicyType,
     AtlasLoader,
 };
-pub use error::{CRAError, Result};
+pub use error::{CRAError, Result, ErrorCategory, ErrorResponse, ErrorDetail};
 pub use storage::{StorageBackend, InMemoryStorage, FileStorage, NullStorage};
 
 /// Protocol version constants
