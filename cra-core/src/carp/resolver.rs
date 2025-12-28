@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::atlas::{AtlasAction, AtlasManifest};
 use crate::error::{CRAError, Result};
-use crate::trace::{EventType, TraceCollector, TRACEEvent};
+use crate::trace::{DeferredConfig, EventType, TraceCollector, TRACEEvent};
 
 use super::{
     AllowedAction, CARPRequest, CARPResolution, Constraint, Decision, DeniedAction,
@@ -108,6 +108,57 @@ impl Resolver {
     pub fn with_default_ttl(mut self, ttl: u64) -> Self {
         self.default_ttl = ttl;
         self
+    }
+
+    /// Enable deferred tracing mode
+    ///
+    /// In deferred mode, trace events are queued without computing hashes,
+    /// achieving <1µs per event instead of ~15µs. Call `flush_traces()` before
+    /// `get_trace()` or `verify_chain()` to ensure all events are processed.
+    ///
+    /// This is recommended for high-throughput scenarios (agent swarms, benchmarks).
+    pub fn with_deferred_tracing(mut self, config: DeferredConfig) -> Self {
+        self.trace_collector = TraceCollector::with_deferred(config);
+        self
+    }
+
+    /// Check if deferred tracing is enabled
+    pub fn is_deferred(&self) -> bool {
+        self.trace_collector.is_deferred()
+    }
+
+    /// Get the number of pending (unprocessed) trace events
+    pub fn pending_trace_count(&self) -> usize {
+        self.trace_collector.pending_count()
+    }
+
+    /// Flush all pending trace events (deferred mode)
+    ///
+    /// Processes all events in the buffer, computing hashes and chaining them.
+    /// In immediate mode, this is a no-op.
+    ///
+    /// Call this before `get_trace()` or `verify_chain()` when using deferred mode.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let resolver = Resolver::new()
+    ///     .with_deferred_tracing(DeferredConfig::default());
+    ///
+    /// // Fast resolution (no hash computation)
+    /// resolver.resolve(&request)?;
+    ///
+    /// // Flush before querying trace
+    /// resolver.flush_traces()?;
+    /// let trace = resolver.get_trace(&session_id)?;
+    /// ```
+    pub fn flush_traces(&mut self) -> Result<()> {
+        self.trace_collector.flush()
+    }
+
+    /// Check if all trace events have been processed
+    pub fn is_traces_flushed(&self) -> bool {
+        self.trace_collector.is_flushed()
     }
 
     /// Load an atlas into the resolver

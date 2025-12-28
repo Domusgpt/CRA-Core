@@ -1,9 +1,11 @@
 //! Benchmarks for the CRA Resolver
+//!
+//! Compares immediate vs deferred tracing modes.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use serde_json::json;
 
-use cra_core::{AtlasManifest, CARPRequest, Resolver};
+use cra_core::{AtlasManifest, CARPRequest, Resolver, DeferredConfig};
 
 fn create_test_atlas() -> AtlasManifest {
     serde_json::from_value(json!({
@@ -154,6 +156,130 @@ fn bench_verify_chain(c: &mut Criterion) {
     });
 }
 
+// =============================================================================
+// Immediate vs Deferred Comparison Benchmarks
+// =============================================================================
+
+fn bench_resolve_immediate_vs_deferred(c: &mut Criterion) {
+    let mut group = c.benchmark_group("resolve_mode_comparison");
+
+    // Immediate mode
+    group.bench_function(BenchmarkId::new("immediate", "resolve"), |b| {
+        let mut resolver = Resolver::new();
+        resolver.load_atlas(create_test_atlas()).unwrap();
+        let session_id = resolver.create_session("bench-agent", "Benchmark goal").unwrap();
+
+        b.iter(|| {
+            let request = CARPRequest::new(
+                session_id.clone(),
+                "bench-agent".to_string(),
+                "I want to manage resources".to_string(),
+            );
+            let resolution = resolver.resolve(&request).unwrap();
+            black_box(resolution)
+        })
+    });
+
+    // Deferred mode (no flush - pure hot path)
+    group.bench_function(BenchmarkId::new("deferred_no_flush", "resolve"), |b| {
+        let mut resolver = Resolver::new()
+            .with_deferred_tracing(DeferredConfig::default());
+        resolver.load_atlas(create_test_atlas()).unwrap();
+        let session_id = resolver.create_session("bench-agent", "Benchmark goal").unwrap();
+
+        // Flush after session creation to ensure it doesn't interfere
+        let _ = resolver.flush_traces();
+
+        b.iter(|| {
+            let request = CARPRequest::new(
+                session_id.clone(),
+                "bench-agent".to_string(),
+                "I want to manage resources".to_string(),
+            );
+            // Ignore errors in deferred mode (expected on first event per session)
+            let resolution = resolver.resolve(&request);
+            black_box(resolution)
+        })
+    });
+
+    // Deferred mode with flush (end-to-end)
+    group.bench_function(BenchmarkId::new("deferred_with_flush", "resolve"), |b| {
+        let mut resolver = Resolver::new()
+            .with_deferred_tracing(DeferredConfig::default());
+        resolver.load_atlas(create_test_atlas()).unwrap();
+        let session_id = resolver.create_session("bench-agent", "Benchmark goal").unwrap();
+
+        // Flush after session creation
+        let _ = resolver.flush_traces();
+
+        b.iter(|| {
+            let request = CARPRequest::new(
+                session_id.clone(),
+                "bench-agent".to_string(),
+                "I want to manage resources".to_string(),
+            );
+            let resolution = resolver.resolve(&request);
+            resolver.flush_traces().unwrap();
+            black_box(resolution)
+        })
+    });
+
+    group.finish();
+}
+
+fn bench_high_throughput_deferred(c: &mut Criterion) {
+    let mut group = c.benchmark_group("high_throughput");
+
+    // Batch of 100 resolves - immediate mode
+    group.bench_function(BenchmarkId::new("immediate", "100_resolves"), |b| {
+        b.iter(|| {
+            let mut resolver = Resolver::new();
+            resolver.load_atlas(create_test_atlas()).unwrap();
+            let session_id = resolver.create_session("bench-agent", "Benchmark goal").unwrap();
+
+            for _ in 0..100 {
+                let request = CARPRequest::new(
+                    session_id.clone(),
+                    "bench-agent".to_string(),
+                    "Test".to_string(),
+                );
+                let _ = resolver.resolve(&request);
+            }
+
+            black_box(resolver.pending_trace_count())
+        })
+    });
+
+    // Batch of 100 resolves - deferred mode
+    group.bench_function(BenchmarkId::new("deferred", "100_resolves"), |b| {
+        b.iter(|| {
+            let mut resolver = Resolver::new()
+                .with_deferred_tracing(DeferredConfig::default());
+            resolver.load_atlas(create_test_atlas()).unwrap();
+            let session_id = resolver.create_session("bench-agent", "Benchmark goal").unwrap();
+
+            // Flush session creation events
+            let _ = resolver.flush_traces();
+
+            for _ in 0..100 {
+                let request = CARPRequest::new(
+                    session_id.clone(),
+                    "bench-agent".to_string(),
+                    "Test".to_string(),
+                );
+                let _ = resolver.resolve(&request);
+            }
+
+            // Flush all at end
+            resolver.flush_traces().unwrap();
+
+            black_box(resolver.pending_trace_count())
+        })
+    });
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_resolver_creation,
@@ -161,7 +287,9 @@ criterion_group!(
     bench_session_create,
     bench_resolve,
     bench_execute,
-    bench_verify_chain
+    bench_verify_chain,
+    bench_resolve_immediate_vs_deferred,
+    bench_high_throughput_deferred
 );
 
 criterion_main!(benches);

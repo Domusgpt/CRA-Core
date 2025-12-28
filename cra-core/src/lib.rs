@@ -80,6 +80,7 @@ pub use carp::{
 pub use trace::{
     TRACEEvent, EventType, TraceCollector, ChainVerification, ReplayResult,
     RawEvent, TraceRingBuffer, BufferStats, TraceProcessor, ProcessorConfig, ProcessorHandle,
+    DeferredConfig,
 };
 pub use atlas::{
     AtlasManifest, AtlasAction, AtlasPolicy, AtlasCapability, PolicyType,

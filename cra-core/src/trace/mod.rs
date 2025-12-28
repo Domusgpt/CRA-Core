@@ -37,7 +37,7 @@ mod buffer;
 mod processor;
 
 pub use event::{TRACEEvent, EventType, EventPayload};
-pub use collector::TraceCollector;
+pub use collector::{TraceCollector, DeferredConfig};
 pub use chain::{ChainVerification, ChainVerifier};
 pub use replay::{ReplayEngine, ReplayResult, ReplayDiff};
 pub use raw::RawEvent;

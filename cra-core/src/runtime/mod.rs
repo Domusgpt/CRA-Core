@@ -67,7 +67,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 use crate::error::Result;
-use crate::trace::{RawEvent, TraceRingBuffer, BufferStats};
+use crate::trace::{TraceRingBuffer, BufferStats};
 use crate::{AtlasManifest, CARPRequest, CARPResolution, Resolver, TRACEEvent};
 
 /// Configuration for the async runtime
@@ -273,7 +273,7 @@ impl AsyncRuntime {
     ) {
         let events = buffer.drain(max_events);
 
-        for raw_event in events {
+        for _raw_event in events {
             // For now, we need to get the processed event from the resolver
             // In a full implementation, we'd compute the hash here
             // For now, just notify subscribers of raw event data
