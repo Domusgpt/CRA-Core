@@ -1,0 +1,24 @@
+{
+  "carp_version": "1.0",
+  "decision": "partial",
+  "allowed_actions": [
+    {
+      "action_id": "data.get",
+      "name": "Get Data",
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "data.list",
+      "name": "List Data",
+      "risk_tier": "low"
+    }
+  ],
+  "denied_actions": [
+    {
+      "action_id": "data.delete",
+      "policy_id": "deny-delete",
+      "reason": "Delete operations are not allowed"
+    }
+  ],
+  "_note": "Fields like trace_id, session_id, timestamp, ttl_seconds are ignored in comparison"
+}

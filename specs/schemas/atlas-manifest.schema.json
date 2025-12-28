@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cra.dev/schemas/atlas-manifest.schema.json",
+  "title": "Atlas Manifest",
+  "description": "CRA Atlas package manifest",
+  "type": "object",
+  "required": [
+    "atlas_version",
+    "atlas_id",
+    "version",
+    "name",
+    "description"
+  ],
+  "properties": {
+    "atlas_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Atlas format version"
+    },
+    "atlas_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-_]*)+$",
+      "description": "Unique identifier in reverse-domain notation"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+",
+      "description": "Semantic version"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the atlas"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Authors of this atlas"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier"
+    },
+    "domains": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Domain tags for discovery"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Capability"
+      },
+      "description": "Capability groupings"
+    },
+    "context_packs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ContextPack"
+      },
+      "description": "Context packs"
+    },
+    "policies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Policy"
+      },
+      "description": "Policy definitions"
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Action"
+      },
+      "description": "Action definitions"
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Dependencies on other atlases"
+    }
+  },
+  "$defs": {
+    "Capability": {
+      "type": "object",
+      "required": ["capability_id", "name", "actions"],
+      "properties": {
+        "capability_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ContextPack": {
+      "type": "object",
+      "required": ["pack_id", "name", "files"],
+      "properties": {
+        "pack_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "priority": {
+          "type": "integer"
+        },
+        "conditions": {
+          "type": "object"
+        }
+      }
+    },
+    "Policy": {
+      "type": "object",
+      "required": ["policy_id", "type", "actions"],
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "enum": ["allow", "deny", "rate_limit", "requires_approval", "budget"]
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reason": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "object"
+        }
+      }
+    },
+    "Action": {
+      "type": "object",
+      "required": ["action_id", "name", "description", "parameters_schema"],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "parameters_schema": {
+          "type": "object"
+        },
+        "returns_schema": {
+          "type": "object"
+        },
+        "risk_tier": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "low"
+        },
+        "idempotent": {
+          "type": "boolean",
+          "default": false
+        },
+        "executor": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

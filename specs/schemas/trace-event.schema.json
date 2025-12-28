@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cra.dev/schemas/trace-event.schema.json",
+  "title": "TRACE Event",
+  "description": "Telemetry & Replay Audit Contract for Execution event object",
+  "type": "object",
+  "required": [
+    "trace_version",
+    "event_id",
+    "trace_id",
+    "span_id",
+    "session_id",
+    "sequence",
+    "timestamp",
+    "event_type",
+    "payload",
+    "event_hash",
+    "previous_event_hash"
+  ],
+  "properties": {
+    "trace_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "TRACE protocol version"
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this event"
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Trace ID grouping related events"
+    },
+    "span_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Span ID for this operation"
+    },
+    "parent_span_id": {
+      "type": ["string", "null"],
+      "description": "Parent span for nested operations"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Session this event belongs to"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonically increasing sequence number"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 with microsecond precision"
+    },
+    "event_type": {
+      "$ref": "#/$defs/EventType",
+      "description": "Type of trace event"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Event-specific data"
+    },
+    "event_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hash of this event"
+    },
+    "previous_event_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hash of preceding event"
+    }
+  },
+  "$defs": {
+    "EventType": {
+      "type": "string",
+      "enum": [
+        "session.started",
+        "session.ended",
+        "carp.request.received",
+        "carp.resolution.completed",
+        "carp.resolution.cached",
+        "action.requested",
+        "action.approved",
+        "action.denied",
+        "action.executed",
+        "action.failed",
+        "policy.evaluated",
+        "policy.violated",
+        "context.injected",
+        "context.redacted",
+        "error.occurred"
+      ],
+      "description": "Standard TRACE event types"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cra.dev/schemas/carp-request.schema.json",
+  "title": "CARP Request",
+  "description": "Context & Action Resolution Protocol request object",
+  "type": "object",
+  "required": [
+    "carp_version",
+    "session_id",
+    "agent_id",
+    "goal",
+    "timestamp"
+  ],
+  "properties": {
+    "carp_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "CARP protocol version"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique session identifier"
+    },
+    "agent_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifier for the requesting agent"
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Natural language description of intent"
+    },
+    "risk_tier": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"],
+      "description": "Risk classification for this request"
+    },
+    "context_hints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Hints for context selection"
+    },
+    "requested_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Required capability identifiers"
+    },
+    "requested_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Specific actions to include"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
+    }
+  },
+  "additionalProperties": false
+}

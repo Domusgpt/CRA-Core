@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cra.dev/schemas/carp-resolution.schema.json",
+  "title": "CARP Resolution",
+  "description": "Context & Action Resolution Protocol resolution object",
+  "type": "object",
+  "required": [
+    "carp_version",
+    "trace_id",
+    "session_id",
+    "decision",
+    "allowed_actions",
+    "denied_actions",
+    "ttl_seconds",
+    "timestamp"
+  ],
+  "properties": {
+    "carp_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "CARP protocol version"
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique trace identifier for this resolution"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Session this resolution belongs to"
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["allow", "deny", "partial", "allow_with_constraints", "requires_approval"],
+      "description": "Overall decision for this resolution"
+    },
+    "allowed_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AllowedAction"
+      },
+      "description": "Actions the agent is allowed to perform"
+    },
+    "denied_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DeniedAction"
+      },
+      "description": "Actions that were denied with reasons"
+    },
+    "context_blocks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ContextBlock"
+      },
+      "description": "Context blocks to inject"
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Constraint"
+      },
+      "description": "Active constraints on behavior"
+    },
+    "ttl_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Time-to-live in seconds"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this resolution was created"
+    }
+  },
+  "$defs": {
+    "AllowedAction": {
+      "type": "object",
+      "required": ["action_id", "name", "parameters_schema", "risk_tier"],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "parameters_schema": {
+          "type": "object"
+        },
+        "risk_tier": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        }
+      }
+    },
+    "DeniedAction": {
+      "type": "object",
+      "required": ["action_id", "policy_id", "reason"],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string"
+        },
+        "is_permanent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ContextBlock": {
+      "type": "object",
+      "required": ["block_id", "name", "content"],
+      "properties": {
+        "block_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "integer"
+        },
+        "content_type": {
+          "type": "string"
+        },
+        "source_atlas": {
+          "type": "string"
+        }
+      }
+    },
+    "Constraint": {
+      "type": "object",
+      "required": ["constraint_id", "constraint_type", "description"],
+      "properties": {
+        "constraint_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "constraint_type": {
+          "type": "string",
+          "enum": ["rate_limit", "time_window", "field_mask", "geo_restriction", "budget_limit", "custom"]
+        },
+        "description": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

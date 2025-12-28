@@ -1,0 +1,72 @@
+{
+  "atlas_version": "1.0",
+  "atlas_id": "com.test.simple",
+  "version": "1.0.0",
+  "name": "Simple Test Atlas",
+  "description": "A simple atlas for conformance testing",
+  "domains": ["test"],
+  "capabilities": [
+    {
+      "capability_id": "read",
+      "name": "Read Operations",
+      "actions": ["data.get", "data.list"]
+    }
+  ],
+  "policies": [
+    {
+      "policy_id": "deny-delete",
+      "type": "deny",
+      "actions": ["*.delete"],
+      "reason": "Delete operations are not allowed"
+    },
+    {
+      "policy_id": "rate-limit-api",
+      "type": "rate_limit",
+      "actions": ["data.*"],
+      "parameters": {
+        "max_calls": 100,
+        "window_seconds": 60
+      }
+    }
+  ],
+  "actions": [
+    {
+      "action_id": "data.get",
+      "name": "Get Data",
+      "description": "Retrieve data by ID",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string" }
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "data.list",
+      "name": "List Data",
+      "description": "List all data items",
+      "parameters_schema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer" }
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "data.delete",
+      "name": "Delete Data",
+      "description": "Delete data by ID",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string" }
+        }
+      },
+      "risk_tier": "high"
+    }
+  ]
+}

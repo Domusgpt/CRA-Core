@@ -1,0 +1,6 @@
+{"event_type":"session.started","payload":{"agent_id":"test-agent","goal":"I need to read and manage data"}}
+{"event_type":"carp.request.received","payload":{"operation":"resolve","goal":"I need to read and manage data"}}
+{"event_type":"policy.evaluated","payload":{"action_id":"data.get"}}
+{"event_type":"policy.evaluated","payload":{"action_id":"data.list"}}
+{"event_type":"policy.evaluated","payload":{"action_id":"data.delete"}}
+{"event_type":"carp.resolution.completed","payload":{"decision_type":"partial","allowed_count":2,"denied_count":1}}
