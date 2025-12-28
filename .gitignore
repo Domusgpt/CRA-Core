@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.traces/
+traces/*.jsonl
+traces/latest
+lock/ratelimits.json
+lock/context_registry.json
+config/licenses.json
+config/identities.json
