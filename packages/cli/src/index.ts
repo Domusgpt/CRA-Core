@@ -537,6 +537,220 @@ const CONFIG_TEMPLATE = JSON.stringify({
 }, null, 2);
 
 // =============================================================================
+// Serve Command
+// =============================================================================
+
+program
+  .command('serve')
+  .description('Start CRA HTTP server')
+  .option('-p, --port <port>', 'Port to listen on', '3000')
+  .option('-h, --host <host>', 'Host to bind to', '0.0.0.0')
+  .option('-a, --atlases <paths>', 'Atlas paths (comma-separated)', './atlases')
+  .option('-k, --api-key <key>', 'API key for authentication')
+  .option('--no-cors', 'Disable CORS')
+  .option('--no-websocket', 'Disable WebSocket trace streaming')
+  .option('--rate-limit <limit>', 'Rate limit (requests per minute)', '100')
+  .action(async (options) => {
+    console.log(chalk.blue('Starting CRA server...'));
+
+    try {
+      // Dynamic import to avoid loading server package when not needed
+      const { CRAServer } = await import('@cra/server');
+
+      const server = new CRAServer({
+        port: parseInt(options.port),
+        host: options.host,
+        atlasPaths: options.atlases.split(','),
+        apiKey: options.apiKey,
+        cors: options.cors,
+        enableWebSocket: options.websocket,
+        rateLimit: parseInt(options.rateLimit),
+      });
+
+      await server.start();
+
+      console.log(chalk.green(`\nCRA server running on http://${options.host}:${options.port}`));
+      console.log(chalk.gray('\nEndpoints:'));
+      console.log(chalk.gray('  POST /v1/resolve   - CARP resolution'));
+      console.log(chalk.gray('  POST /v1/execute   - Action execution'));
+      console.log(chalk.gray('  POST /v1/adapt/:p  - Platform adaptation'));
+      console.log(chalk.gray('  GET  /health       - Health check'));
+      if (options.websocket) {
+        console.log(chalk.gray(`  WS   /v1/trace     - Trace streaming`));
+      }
+      console.log(chalk.gray('\nPress Ctrl+C to stop'));
+
+      // Handle shutdown
+      process.on('SIGINT', async () => {
+        console.log(chalk.yellow('\nShutting down...'));
+        await server.stop();
+        process.exit(0);
+      });
+
+    } catch (error) {
+      console.error(chalk.red(`Failed to start server: ${error}`));
+      process.exit(1);
+    }
+  });
+
+// =============================================================================
+// Doctor Command
+// =============================================================================
+
+program
+  .command('doctor')
+  .description('Diagnose CRA installation and configuration')
+  .action(async () => {
+    console.log(chalk.blue('CRA Doctor - Checking installation...\n'));
+
+    const checks: { name: string; status: 'ok' | 'warn' | 'error'; message: string }[] = [];
+
+    // Check Node.js version
+    const nodeVersion = process.version;
+    const nodeMajor = parseInt(nodeVersion.slice(1));
+    if (nodeMajor >= 20) {
+      checks.push({ name: 'Node.js version', status: 'ok', message: `${nodeVersion} (>= 20.0.0)` });
+    } else {
+      checks.push({ name: 'Node.js version', status: 'error', message: `${nodeVersion} (requires >= 20.0.0)` });
+    }
+
+    // Check config directory
+    if (fs.existsSync('config/cra.json')) {
+      checks.push({ name: 'Configuration', status: 'ok', message: 'config/cra.json found' });
+    } else {
+      checks.push({ name: 'Configuration', status: 'warn', message: 'config/cra.json not found (run cra init)' });
+    }
+
+    // Check atlases directory
+    if (fs.existsSync('atlases')) {
+      const atlases = fs.readdirSync('atlases', { withFileTypes: true })
+        .filter(d => d.isDirectory()).length;
+      if (atlases > 0) {
+        checks.push({ name: 'Atlases', status: 'ok', message: `${atlases} atlas(es) found` });
+      } else {
+        checks.push({ name: 'Atlases', status: 'warn', message: 'No atlases found in ./atlases/' });
+      }
+    } else {
+      checks.push({ name: 'Atlases', status: 'warn', message: './atlases/ directory not found' });
+    }
+
+    // Check traces directory
+    if (fs.existsSync('traces')) {
+      const traces = fs.readdirSync('traces').filter(f => f.endsWith('.trace.jsonl')).length;
+      checks.push({ name: 'Traces', status: 'ok', message: `${traces} trace file(s)` });
+    } else {
+      checks.push({ name: 'Traces', status: 'warn', message: './traces/ directory not found' });
+    }
+
+    // Check agents.md
+    if (fs.existsSync('agents.md')) {
+      checks.push({ name: 'Agents contract', status: 'ok', message: 'agents.md found' });
+    } else {
+      checks.push({ name: 'Agents contract', status: 'warn', message: 'agents.md not found' });
+    }
+
+    // Print results
+    for (const check of checks) {
+      const icon = check.status === 'ok' ? chalk.green('✓') :
+                   check.status === 'warn' ? chalk.yellow('!') : chalk.red('✗');
+      console.log(`${icon} ${check.name}: ${chalk.gray(check.message)}`);
+    }
+
+    const errors = checks.filter(c => c.status === 'error').length;
+    const warns = checks.filter(c => c.status === 'warn').length;
+
+    console.log();
+    if (errors > 0) {
+      console.log(chalk.red(`${errors} error(s) found. Please fix before proceeding.`));
+      process.exit(1);
+    } else if (warns > 0) {
+      console.log(chalk.yellow(`${warns} warning(s). Run 'cra init' to set up missing components.`));
+    } else {
+      console.log(chalk.green('All checks passed!'));
+    }
+  });
+
+// =============================================================================
+// Atlas Create Command
+// =============================================================================
+
+atlasCmd
+  .command('create <name>')
+  .description('Create a new atlas from template')
+  .option('-d, --domain <domain>', 'Primary domain for the atlas')
+  .option('-o, --output <path>', 'Output directory', './atlases')
+  .action(async (name, options) => {
+    const atlasPath = path.join(options.output, name);
+
+    if (fs.existsSync(atlasPath)) {
+      console.log(chalk.red(`Atlas already exists at ${atlasPath}`));
+      process.exit(1);
+    }
+
+    console.log(chalk.blue(`Creating atlas: ${name}...`));
+
+    // Create directory structure
+    fs.mkdirSync(atlasPath, { recursive: true });
+    fs.mkdirSync(path.join(atlasPath, 'context'));
+
+    // Create manifest
+    const manifest = {
+      atlas_version: '0.1',
+      metadata: {
+        id: `atlas.${name}`,
+        version: '0.1.0',
+        description: `${name} atlas`,
+        author: 'Your Organization',
+        license: 'MIT',
+      },
+      domains: [options.domain ?? name],
+      context_packs: [
+        {
+          pack_id: 'default',
+          domain: options.domain ?? name,
+          source: 'context/default.md',
+        },
+      ],
+      actions: [],
+      policies: [
+        {
+          policy_id: 'default-allow',
+          type: 'allow',
+          conditions: { domains: [options.domain ?? name] },
+        },
+      ],
+    };
+
+    fs.writeFileSync(
+      path.join(atlasPath, 'manifest.yaml'),
+      `# ${name} Atlas Manifest\n` +
+      `# See: https://cra.dev/docs/atlas-format\n\n` +
+      JSON.stringify(manifest, null, 2).replace(/"/g, '')
+        .replace(/\{/g, '')
+        .replace(/\}/g, '')
+        .replace(/\[/g, '')
+        .replace(/\]/g, '')
+        .replace(/,$/gm, '')
+    );
+
+    // Create default context
+    fs.writeFileSync(
+      path.join(atlasPath, 'context', 'default.md'),
+      `# ${name} Context\n\n` +
+      `This context pack provides information about ${name}.\n\n` +
+      `## Guidelines\n\n` +
+      `- Add domain-specific guidelines here\n` +
+      `- Describe best practices\n` +
+      `- Include relevant examples\n`
+    );
+
+    console.log(chalk.green(`  Created ${atlasPath}/`));
+    console.log(chalk.green(`  Created ${atlasPath}/manifest.yaml`));
+    console.log(chalk.green(`  Created ${atlasPath}/context/default.md`));
+    console.log(chalk.blue('\nAtlas created! Edit manifest.yaml to configure.'));
+  });
+
+// =============================================================================
 // Run CLI
 // =============================================================================
 

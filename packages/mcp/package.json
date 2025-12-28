@@ -1,0 +1,36 @@
+{
+  "name": "@cra/mcp",
+  "version": "0.1.0",
+  "description": "CRA MCP Server - Expose CRA capabilities via Model Context Protocol",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "cra-mcp": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@cra/protocol": "^0.1.0",
+    "@cra/runtime": "^0.1.0",
+    "@cra/adapters": "^0.1.0",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.2"
+  },
+  "peerDependencies": {
+    "@cra/protocol": "^0.1.0",
+    "@cra/runtime": "^0.1.0"
+  }
+}

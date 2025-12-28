@@ -1,0 +1,32 @@
+{
+  "name": "@cra/storage",
+  "version": "0.1.0",
+  "description": "CRA persistence layer for resolutions, traces, and sessions",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@cra/protocol": "^0.1.0",
+    "better-sqlite3": "^9.4.3",
+    "lru-cache": "^10.2.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.9",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.2"
+  },
+  "peerDependencies": {
+    "@cra/protocol": "^0.1.0"
+  }
+}
