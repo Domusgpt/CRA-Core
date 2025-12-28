@@ -2,13 +2,29 @@
 //!
 //! Optional async runtime layer for swarm and high-concurrency scenarios.
 //!
-//! The core `Resolver` is synchronous and CPU-bound (~134µs per resolution).
+//! The core `Resolver` is synchronous and CPU-bound (target: <10µs per resolution).
 //! This runtime layer wraps it with async for:
 //!
 //! - **Async storage**: Non-blocking database operations
 //! - **Session pooling**: Efficient management of many concurrent sessions
 //! - **Event streaming**: Push traces to Kafka/Redis/etc.
 //! - **Backpressure**: Graceful handling of overload
+//! - **Timer integration**: Tokio-based timer backend for heartbeats/TTL
+//!
+//! ## Architecture
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────────────────────────┐
+//! │                         AsyncRuntime                                │
+//! │  ┌───────────────┐  ┌────────────────┐  ┌──────────────────────┐   │
+//! │  │   Resolver    │  │ TraceRingBuffer│  │  AsyncStorageBackend │   │
+//! │  │ (sync, fast)  │──│  (lock-free)   │──│     (async I/O)      │   │
+//! │  └───────────────┘  └────────────────┘  └──────────────────────┘   │
+//! │          │                  │                      ▲               │
+//! │          │                  │                      │               │
+//! │  spawn_blocking     drain (background)     store_event            │
+//! └─────────────────────────────────────────────────────────────────────┘
+//! ```
 //!
 //! # When to Use
 //!
@@ -46,8 +62,12 @@
 //! ```
 
 use std::sync::Arc;
+use std::time::Duration;
+
+use tokio::sync::mpsc;
 
 use crate::error::Result;
+use crate::trace::{RawEvent, TraceRingBuffer, BufferStats};
 use crate::{AtlasManifest, CARPRequest, CARPResolution, Resolver, TRACEEvent};
 
 /// Configuration for the async runtime
@@ -141,9 +161,31 @@ pub trait EventSubscriber: Send + Sync {
     async fn on_session_end(&self, session_id: &str) -> Result<()>;
 }
 
+/// Handle to control the async trace processor
+pub struct TraceProcessorHandle {
+    handle: tokio::task::JoinHandle<()>,
+    shutdown_tx: mpsc::Sender<()>,
+}
+
+impl TraceProcessorHandle {
+    /// Signal the processor to shut down
+    pub async fn shutdown(self) -> std::result::Result<(), tokio::task::JoinError> {
+        // Send shutdown signal
+        let _ = self.shutdown_tx.send(()).await;
+        // Wait for task to finish
+        self.handle.await
+    }
+
+    /// Check if the processor is still running
+    pub fn is_finished(&self) -> bool {
+        self.handle.is_finished()
+    }
+}
+
 /// Async runtime for high-concurrency CRA operations
 ///
 /// Wraps the synchronous `Resolver` with:
+/// - Lock-free trace buffer (non-blocking event collection)
 /// - Async storage operations
 /// - Session pooling
 /// - Event streaming
@@ -153,16 +195,23 @@ pub struct AsyncRuntime {
     resolver: Arc<parking_lot::RwLock<Resolver>>,
     storage: Option<Arc<dyn AsyncStorageBackend>>,
     subscribers: Vec<Arc<dyn EventSubscriber>>,
+    /// Lock-free ring buffer for trace events
+    trace_buffer: Arc<TraceRingBuffer>,
+    /// Shutdown signal for background tasks
+    shutdown_tx: Option<mpsc::Sender<()>>,
 }
 
 impl AsyncRuntime {
     /// Create a new async runtime with default config
     pub async fn new(config: RuntimeConfig) -> Result<Self> {
+        let buffer_capacity = config.channel_buffer_size * 4; // 4x buffer for safety
         Ok(Self {
             config,
             resolver: Arc::new(parking_lot::RwLock::new(Resolver::new())),
             storage: None,
             subscribers: Vec::new(),
+            trace_buffer: Arc::new(TraceRingBuffer::new(buffer_capacity)),
+            shutdown_tx: None,
         })
     }
 
@@ -176,6 +225,78 @@ impl AsyncRuntime {
     pub fn with_subscriber(mut self, subscriber: Arc<dyn EventSubscriber>) -> Self {
         self.subscribers.push(subscriber);
         self
+    }
+
+    /// Start background trace processing task
+    ///
+    /// Spawns a tokio task that drains the ring buffer and processes events.
+    /// Returns a handle to control the background task.
+    pub fn start_trace_processor(&mut self) -> TraceProcessorHandle {
+        let (tx, mut rx) = mpsc::channel::<()>(1);
+        self.shutdown_tx = Some(tx.clone());
+
+        let buffer = self.trace_buffer.clone();
+        let storage = self.storage.clone();
+        let subscribers = self.subscribers.clone();
+        let batch_size = self.config.channel_buffer_size.min(100);
+        let flush_interval = Duration::from_millis(50);
+
+        let handle = tokio::spawn(async move {
+            let mut interval = tokio::time::interval(flush_interval);
+
+            loop {
+                tokio::select! {
+                    _ = rx.recv() => {
+                        // Shutdown signal received, drain remaining events
+                        Self::process_buffer_batch(&buffer, &storage, &subscribers, buffer.len()).await;
+                        break;
+                    }
+                    _ = interval.tick() => {
+                        // Process batch of events
+                        if !buffer.is_empty() {
+                            Self::process_buffer_batch(&buffer, &storage, &subscribers, batch_size).await;
+                        }
+                    }
+                }
+            }
+        });
+
+        TraceProcessorHandle { handle, shutdown_tx: tx }
+    }
+
+    /// Process a batch of events from the buffer
+    async fn process_buffer_batch(
+        buffer: &TraceRingBuffer,
+        storage: &Option<Arc<dyn AsyncStorageBackend>>,
+        subscribers: &[Arc<dyn EventSubscriber>],
+        max_events: usize,
+    ) {
+        let events = buffer.drain(max_events);
+
+        for raw_event in events {
+            // For now, we need to get the processed event from the resolver
+            // In a full implementation, we'd compute the hash here
+            // For now, just notify subscribers of raw event data
+            if let Some(ref _storage) = storage {
+                // Storage would process raw events
+                // storage.store_raw_event(&raw_event).await;
+            }
+
+            // Notify subscribers (they might want raw events too)
+            for _subscriber in subscribers {
+                // subscriber.on_raw_event(&raw_event).await;
+            }
+        }
+    }
+
+    /// Get trace buffer statistics
+    pub fn buffer_stats(&self) -> BufferStats {
+        self.trace_buffer.stats()
+    }
+
+    /// Check buffer pressure (0.0-1.0)
+    pub fn buffer_pressure(&self) -> f32 {
+        self.trace_buffer.pressure()
     }
 
     /// Load an atlas (sync, but cheap)
@@ -266,6 +387,8 @@ impl Clone for AsyncRuntime {
             resolver: self.resolver.clone(),
             storage: self.storage.clone(),
             subscribers: self.subscribers.clone(),
+            trace_buffer: self.trace_buffer.clone(),
+            shutdown_tx: self.shutdown_tx.clone(),
         }
     }
 }
