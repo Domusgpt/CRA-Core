@@ -3,6 +3,8 @@ node_modules/
 
 # Build outputs
 dist/
+target/
+cra-core/target/
 
 # IDE
 .idea/
