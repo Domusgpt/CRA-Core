@@ -6,6 +6,7 @@
 
 import { MemoryStore } from './memory-store.js';
 import { SQLiteStore } from './sqlite-store.js';
+import { PostgresStore } from './postgres-store.js';
 import type { SessionRecord, QueryOptions, QueryResult } from './types.js';
 
 /**
@@ -13,10 +14,16 @@ import type { SessionRecord, QueryOptions, QueryResult } from './types.js';
  */
 export interface SessionStoreConfig {
   /** Storage backend */
-  backend: 'memory' | 'sqlite';
+  backend: 'memory' | 'sqlite' | 'postgresql';
 
   /** SQLite database path (for sqlite backend) */
   dbPath?: string;
+
+  /** PostgreSQL connection string (for postgresql backend) */
+  connectionString?: string;
+
+  /** PostgreSQL schema (for postgresql backend) */
+  schema?: string;
 
   /** Session idle timeout in seconds */
   idleTimeoutSeconds?: number;
@@ -29,13 +36,18 @@ export interface SessionStoreConfig {
  * Session store for managing agent sessions
  */
 export class SessionStore {
-  private store: MemoryStore | SQLiteStore;
+  private store: MemoryStore | SQLiteStore | PostgresStore;
   private readonly idleTimeoutSeconds: number;
 
   constructor(config: SessionStoreConfig = { backend: 'memory' }) {
     this.idleTimeoutSeconds = config.idleTimeoutSeconds ?? 3600; // 1 hour
 
-    if (config.backend === 'sqlite') {
+    if (config.backend === 'postgresql') {
+      this.store = new PostgresStore({
+        connectionString: config.connectionString,
+        schema: config.schema,
+      });
+    } else if (config.backend === 'sqlite') {
       this.store = new SQLiteStore({
         path: config.dbPath ?? ':memory:',
       });

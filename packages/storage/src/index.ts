@@ -17,6 +17,7 @@ export type {
 // Store implementations
 export { MemoryStore } from './memory-store.js';
 export { SQLiteStore } from './sqlite-store.js';
+export { PostgresStore, type PostgresStoreConfig } from './postgres-store.js';
 
 // Resolution store
 export { ResolutionStore, type ResolutionStoreConfig } from './resolution-store.js';

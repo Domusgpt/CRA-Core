@@ -7,6 +7,7 @@
 import type { CARPResolution } from '@cra/protocol';
 import { MemoryStore } from './memory-store.js';
 import { SQLiteStore } from './sqlite-store.js';
+import { PostgresStore } from './postgres-store.js';
 import type { ResolutionRecord, QueryOptions, QueryResult } from './types.js';
 
 /**
@@ -14,10 +15,16 @@ import type { ResolutionRecord, QueryOptions, QueryResult } from './types.js';
  */
 export interface ResolutionStoreConfig {
   /** Storage backend */
-  backend: 'memory' | 'sqlite';
+  backend: 'memory' | 'sqlite' | 'postgresql';
 
   /** SQLite database path (for sqlite backend) */
   dbPath?: string;
+
+  /** PostgreSQL connection string (for postgresql backend) */
+  connectionString?: string;
+
+  /** PostgreSQL schema (for postgresql backend) */
+  schema?: string;
 
   /** Default TTL in seconds */
   defaultTtlSeconds?: number;
@@ -30,13 +37,18 @@ export interface ResolutionStoreConfig {
  * Resolution store for managing CARP resolutions
  */
 export class ResolutionStore {
-  private store: MemoryStore | SQLiteStore;
+  private store: MemoryStore | SQLiteStore | PostgresStore;
   private readonly defaultTtlSeconds: number;
 
   constructor(config: ResolutionStoreConfig = { backend: 'memory' }) {
     this.defaultTtlSeconds = config.defaultTtlSeconds ?? 300; // 5 minutes
 
-    if (config.backend === 'sqlite') {
+    if (config.backend === 'postgresql') {
+      this.store = new PostgresStore({
+        connectionString: config.connectionString,
+        schema: config.schema,
+      });
+    } else if (config.backend === 'sqlite') {
       this.store = new SQLiteStore({
         path: config.dbPath ?? ':memory:',
       });

@@ -19,10 +19,12 @@
   "dependencies": {
     "@cra/protocol": "^0.1.0",
     "better-sqlite3": "^9.4.3",
-    "lru-cache": "^10.2.0"
+    "lru-cache": "^10.2.0",
+    "pg": "^8.11.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",
+    "@types/pg": "^8.10.9",
     "typescript": "^5.3.3",
     "vitest": "^1.2.2"
   },

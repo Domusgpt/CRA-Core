@@ -13,10 +13,16 @@ import { TraceStore, type TraceStoreConfig } from './trace-store.js';
  */
 export interface CreateStoreOptions {
   /** Storage backend */
-  backend: 'memory' | 'sqlite';
+  backend: 'memory' | 'sqlite' | 'postgresql';
 
   /** SQLite database path (for sqlite backend) */
   dbPath?: string;
+
+  /** PostgreSQL connection string (for postgresql backend) */
+  connectionString?: string;
+
+  /** PostgreSQL schema (for postgresql backend) */
+  schema?: string;
 
   /** Resolution TTL in seconds */
   resolutionTtlSeconds?: number;
@@ -58,6 +64,8 @@ export function createStore(options: CreateStoreOptions): StorageSetup {
   const resolutionConfig: ResolutionStoreConfig = {
     backend: options.backend,
     dbPath: options.dbPath,
+    connectionString: options.connectionString,
+    schema: options.schema,
     defaultTtlSeconds: options.resolutionTtlSeconds,
     maxItems: options.maxItems,
   };
@@ -65,6 +73,8 @@ export function createStore(options: CreateStoreOptions): StorageSetup {
   const sessionConfig: SessionStoreConfig = {
     backend: options.backend,
     dbPath: options.dbPath,
+    connectionString: options.connectionString,
+    schema: options.schema,
     idleTimeoutSeconds: options.sessionIdleTimeoutSeconds,
     maxItems: options.maxItems,
   };
@@ -72,6 +82,8 @@ export function createStore(options: CreateStoreOptions): StorageSetup {
   const traceConfig: TraceStoreConfig = {
     backend: options.backend,
     dbPath: options.dbPath,
+    connectionString: options.connectionString,
+    schema: options.schema,
     retentionDays: options.traceRetentionDays,
     maxItems: options.maxItems,
   };

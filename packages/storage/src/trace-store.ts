@@ -7,6 +7,7 @@
 import type { TRACEEvent } from '@cra/protocol';
 import { MemoryStore } from './memory-store.js';
 import { SQLiteStore } from './sqlite-store.js';
+import { PostgresStore } from './postgres-store.js';
 import type { TraceRecord, QueryOptions, QueryResult } from './types.js';
 
 /**
@@ -14,10 +15,16 @@ import type { TraceRecord, QueryOptions, QueryResult } from './types.js';
  */
 export interface TraceStoreConfig {
   /** Storage backend */
-  backend: 'memory' | 'sqlite';
+  backend: 'memory' | 'sqlite' | 'postgresql';
 
   /** SQLite database path (for sqlite backend) */
   dbPath?: string;
+
+  /** PostgreSQL connection string (for postgresql backend) */
+  connectionString?: string;
+
+  /** PostgreSQL schema (for postgresql backend) */
+  schema?: string;
 
   /** Maximum traces to retain (for memory backend) */
   maxItems?: number;
@@ -30,13 +37,18 @@ export interface TraceStoreConfig {
  * Trace store for managing TRACE telemetry
  */
 export class TraceStore {
-  private store: MemoryStore | SQLiteStore;
+  private store: MemoryStore | SQLiteStore | PostgresStore;
   private readonly retentionDays: number;
 
   constructor(config: TraceStoreConfig = { backend: 'memory' }) {
     this.retentionDays = config.retentionDays ?? 30;
 
-    if (config.backend === 'sqlite') {
+    if (config.backend === 'postgresql') {
+      this.store = new PostgresStore({
+        connectionString: config.connectionString,
+        schema: config.schema,
+      });
+    } else if (config.backend === 'sqlite') {
       this.store = new SQLiteStore({
         path: config.dbPath ?? ':memory:',
       });
