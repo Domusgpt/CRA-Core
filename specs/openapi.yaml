@@ -1,0 +1,909 @@
+openapi: 3.1.0
+info:
+  title: CRA Runtime API
+  description: |
+    Context Registry Agents (CRA) Runtime HTTP API.
+
+    This API provides access to CARP resolution, action execution,
+    session management, and trace retrieval.
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  contact:
+    name: CRA Project
+    url: https://github.com/cra-project/cra-core
+
+servers:
+  - url: http://localhost:8420
+    description: Local development server
+  - url: https://api.cra.dev
+    description: Production server
+
+tags:
+  - name: Sessions
+    description: Session lifecycle management
+  - name: CARP
+    description: Context & Action Resolution Protocol
+  - name: Traces
+    description: TRACE event retrieval
+  - name: Atlases
+    description: Atlas management
+  - name: Health
+    description: Health and status
+
+paths:
+  /v1/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns the health status of the runtime
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Runtime is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /v1/sessions:
+    post:
+      tags: [Sessions]
+      summary: Create session
+      description: Creates a new agent session
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [Sessions]
+      summary: List sessions
+      description: Lists all active sessions
+      operationId: listSessions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, ended, all]
+            default: active
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Session list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/sessions/{session_id}:
+    get:
+      tags: [Sessions]
+      summary: Get session
+      description: Retrieves a session by ID
+      operationId: getSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Sessions]
+      summary: End session
+      description: Ends an active session
+      operationId: endSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '204':
+          description: Session ended
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/resolve:
+    post:
+      tags: [CARP]
+      summary: Resolve context and actions
+      description: |
+        Resolves available context and actions for a given goal.
+        This is the primary CARP endpoint.
+      operationId: resolve
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CARPRequest'
+      responses:
+        '200':
+          description: Resolution successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CARPResolution'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Session or Atlas not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/execute:
+    post:
+      tags: [CARP]
+      summary: Execute action
+      description: Executes an action authorized by a prior resolution
+      operationId: execute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteRequest'
+      responses:
+        '200':
+          description: Execution successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Action denied by policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resolution or action not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/traces/{session_id}:
+    get:
+      tags: [Traces]
+      summary: Get trace events
+      description: Retrieves TRACE events for a session
+      operationId: getTraces
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - name: event_type
+          in: query
+          description: Filter by event type
+          schema:
+            type: string
+        - name: since_sequence
+          in: query
+          description: Only events after this sequence number
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+      responses:
+        '200':
+          description: Trace events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraceEventList'
+            application/x-ndjson:
+              schema:
+                type: string
+                description: Newline-delimited JSON events
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/traces/{session_id}/verify:
+    post:
+      tags: [Traces]
+      summary: Verify trace integrity
+      description: Verifies the hash chain integrity of a trace
+      operationId: verifyTrace
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraceVerification'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/atlases:
+    get:
+      tags: [Atlases]
+      summary: List atlases
+      description: Lists all loaded atlases
+      operationId: listAtlases
+      responses:
+        '200':
+          description: Atlas list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AtlasList'
+
+    post:
+      tags: [Atlases]
+      summary: Load atlas
+      description: Loads an atlas from manifest
+      operationId: loadAtlas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AtlasManifest'
+      responses:
+        '201':
+          description: Atlas loaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AtlasSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Atlas already loaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/atlases/{atlas_id}:
+    get:
+      tags: [Atlases]
+      summary: Get atlas
+      description: Retrieves an atlas by ID
+      operationId: getAtlas
+      parameters:
+        - $ref: '#/components/parameters/AtlasId'
+      responses:
+        '200':
+          description: Atlas manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AtlasManifest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Atlases]
+      summary: Unload atlas
+      description: Unloads an atlas
+      operationId: unloadAtlas
+      parameters:
+        - $ref: '#/components/parameters/AtlasId'
+      responses:
+        '204':
+          description: Atlas unloaded
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Session identifier
+
+    AtlasId:
+      name: atlas_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$'
+      description: Atlas identifier
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status, version]
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        version:
+          type: string
+        uptime_seconds:
+          type: integer
+        checks:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [pass, warn, fail]
+              message:
+                type: string
+
+    CreateSessionRequest:
+      type: object
+      required: [agent_id, goal]
+      properties:
+        agent_id:
+          type: string
+          minLength: 1
+          maxLength: 255
+        goal:
+          type: string
+          minLength: 1
+        atlas_id:
+          type: string
+        metadata:
+          type: object
+
+    Session:
+      type: object
+      required: [session_id, agent_id, status, created_at]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+        atlas_id:
+          type: string
+        goal:
+          type: string
+        status:
+          type: string
+          enum: [active, ended]
+        created_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+
+    SessionList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    CARPRequest:
+      type: object
+      required: [carp_version, request_id, timestamp, operation, requester, task]
+      properties:
+        carp_version:
+          type: string
+          const: '1.0'
+        request_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        operation:
+          type: string
+          enum: [resolve, execute, validate]
+        requester:
+          type: object
+          required: [agent_id, session_id]
+          properties:
+            agent_id:
+              type: string
+            session_id:
+              type: string
+              format: uuid
+            parent_session_id:
+              type: string
+              format: uuid
+        task:
+          type: object
+          required: [goal]
+          properties:
+            goal:
+              type: string
+            risk_tier:
+              type: string
+              enum: [low, medium, high, critical]
+            context_hints:
+              type: array
+              items:
+                type: string
+            required_capabilities:
+              type: array
+              items:
+                type: string
+        atlas_ids:
+          type: array
+          items:
+            type: string
+        context:
+          type: object
+
+    CARPResolution:
+      type: object
+      required:
+        - carp_version
+        - resolution_id
+        - request_id
+        - timestamp
+        - decision
+        - context_blocks
+        - allowed_actions
+        - denied_actions
+        - constraints
+        - ttl_seconds
+        - trace_id
+      properties:
+        carp_version:
+          type: string
+        resolution_id:
+          type: string
+          format: uuid
+        request_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        decision:
+          type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [allow, deny, partial, requires_approval]
+            reason:
+              type: string
+            approval_id:
+              type: string
+            expires_at:
+              type: string
+              format: date-time
+        context_blocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContextBlock'
+        allowed_actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AllowedAction'
+        denied_actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeniedAction'
+        constraints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Constraint'
+        ttl_seconds:
+          type: integer
+        trace_id:
+          type: string
+          format: uuid
+
+    ContextBlock:
+      type: object
+      required: [block_id, source, content_type, content, priority]
+      properties:
+        block_id:
+          type: string
+        source:
+          type: string
+        content_type:
+          type: string
+        content:
+          type: string
+        priority:
+          type: integer
+        token_estimate:
+          type: integer
+
+    AllowedAction:
+      type: object
+      required: [action_id, name, description]
+      properties:
+        action_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        parameters_schema:
+          type: object
+        returns_schema:
+          type: object
+        risk_tier:
+          type: string
+          enum: [low, medium, high, critical]
+        requires_confirmation:
+          type: boolean
+        idempotent:
+          type: boolean
+        rate_limit:
+          type: object
+          properties:
+            max_calls:
+              type: integer
+            window_seconds:
+              type: integer
+
+    DeniedAction:
+      type: object
+      required: [action_id, reason]
+      properties:
+        action_id:
+          type: string
+        reason:
+          type: string
+        policy_id:
+          type: string
+
+    Constraint:
+      type: object
+      required: [constraint_id, type]
+      properties:
+        constraint_id:
+          type: string
+        type:
+          type: string
+        parameters:
+          type: object
+
+    ExecuteRequest:
+      type: object
+      required: [carp_version, request_id, timestamp, operation, requester, execution]
+      properties:
+        carp_version:
+          type: string
+          const: '1.0'
+        request_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        operation:
+          type: string
+          const: execute
+        requester:
+          type: object
+          required: [agent_id, session_id]
+          properties:
+            agent_id:
+              type: string
+            session_id:
+              type: string
+              format: uuid
+        task:
+          type: object
+          properties:
+            goal:
+              type: string
+        execution:
+          type: object
+          required: [resolution_id, action_id, parameters]
+          properties:
+            resolution_id:
+              type: string
+              format: uuid
+            action_id:
+              type: string
+            parameters:
+              type: object
+            idempotency_key:
+              type: string
+
+    ExecuteResponse:
+      type: object
+      required: [carp_version, execution_id, request_id, resolution_id, timestamp, status]
+      properties:
+        carp_version:
+          type: string
+        execution_id:
+          type: string
+          format: uuid
+        request_id:
+          type: string
+          format: uuid
+        resolution_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [success, error, denied, pending_approval]
+        result:
+          type: object
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+        trace_id:
+          type: string
+          format: uuid
+
+    TraceEvent:
+      type: object
+      required:
+        - trace_version
+        - event_id
+        - trace_id
+        - span_id
+        - session_id
+        - sequence
+        - timestamp
+        - event_type
+        - payload
+        - event_hash
+        - previous_event_hash
+      properties:
+        trace_version:
+          type: string
+        event_id:
+          type: string
+          format: uuid
+        trace_id:
+          type: string
+          format: uuid
+        span_id:
+          type: string
+          format: uuid
+        parent_span_id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        event_type:
+          type: string
+        payload:
+          type: object
+        event_hash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+        previous_event_hash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+
+    TraceEventList:
+      type: object
+      required: [events, session_id]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/TraceEvent'
+        session_id:
+          type: string
+          format: uuid
+        total:
+          type: integer
+        last_sequence:
+          type: integer
+
+    TraceVerification:
+      type: object
+      required: [valid, event_count]
+      properties:
+        valid:
+          type: boolean
+        event_count:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              sequence:
+                type: integer
+              error:
+                type: string
+              details:
+                type: string
+
+    AtlasManifest:
+      type: object
+      required: [atlas_version, atlas_id, version, name, description]
+      properties:
+        atlas_version:
+          type: string
+        atlas_id:
+          type: string
+        version:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        authors:
+          type: array
+          items:
+            type: string
+        license:
+          type: string
+        domains:
+          type: array
+          items:
+            type: string
+        capabilities:
+          type: array
+          items:
+            type: object
+        context_packs:
+          type: array
+          items:
+            type: object
+        policies:
+          type: array
+          items:
+            type: object
+        actions:
+          type: array
+          items:
+            type: object
+
+    AtlasSummary:
+      type: object
+      required: [atlas_id, version, name]
+      properties:
+        atlas_id:
+          type: string
+        version:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        domains:
+          type: array
+          items:
+            type: string
+        action_count:
+          type: integer
+        loaded_at:
+          type: string
+          format: date-time
+
+    AtlasList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AtlasSummary'
+        total:
+          type: integer
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+            request_id:
+              type: string
+
+security:
+  - bearerAuth: []
+  - apiKey: []

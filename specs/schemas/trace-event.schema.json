@@ -25,26 +25,27 @@
     },
     "event_id": {
       "type": "string",
-      "minLength": 1,
-      "description": "Unique identifier for this event"
+      "format": "uuid",
+      "description": "UUIDv7 unique to this event"
     },
     "trace_id": {
       "type": "string",
-      "minLength": 1,
-      "description": "Trace ID grouping related events"
+      "format": "uuid",
+      "description": "UUIDv7 grouping related events"
     },
     "span_id": {
       "type": "string",
-      "minLength": 1,
-      "description": "Span ID for this operation"
+      "format": "uuid",
+      "description": "UUIDv7 for this operation span"
     },
     "parent_span_id": {
       "type": ["string", "null"],
+      "format": "uuid",
       "description": "Parent span for nested operations"
     },
     "session_id": {
       "type": "string",
-      "minLength": 1,
+      "format": "uuid",
       "description": "Session this event belongs to"
     },
     "sequence": {
@@ -97,6 +98,144 @@
         "error.occurred"
       ],
       "description": "Standard TRACE event types"
+    },
+    "SessionStartedPayload": {
+      "type": "object",
+      "required": ["agent_id", "goal"],
+      "properties": {
+        "agent_id": { "type": "string" },
+        "goal": { "type": "string" },
+        "atlas_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "metadata": { "type": "object" }
+      }
+    },
+    "SessionEndedPayload": {
+      "type": "object",
+      "required": ["reason", "duration_ms"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": ["completed", "timeout", "error", "cancelled"]
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "action_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error": { "type": "string" }
+      }
+    },
+    "CARPRequestPayload": {
+      "type": "object",
+      "required": ["request_id", "operation", "goal"],
+      "properties": {
+        "request_id": { "type": "string", "format": "uuid" },
+        "operation": { "type": "string" },
+        "goal": { "type": "string" },
+        "atlas_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "CARPResolutionPayload": {
+      "type": "object",
+      "required": ["resolution_id", "decision_type", "allowed_count", "denied_count"],
+      "properties": {
+        "resolution_id": { "type": "string", "format": "uuid" },
+        "request_id": { "type": "string", "format": "uuid" },
+        "decision_type": {
+          "type": "string",
+          "enum": ["allow", "deny", "partial", "requires_approval"]
+        },
+        "allowed_count": { "type": "integer", "minimum": 0 },
+        "denied_count": { "type": "integer", "minimum": 0 },
+        "context_block_count": { "type": "integer", "minimum": 0 },
+        "ttl_seconds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ActionRequestedPayload": {
+      "type": "object",
+      "required": ["action_id"],
+      "properties": {
+        "action_id": { "type": "string" },
+        "resolution_id": { "type": "string", "format": "uuid" },
+        "parameters_hash": { "type": "string" }
+      }
+    },
+    "ActionExecutedPayload": {
+      "type": "object",
+      "required": ["action_id", "execution_id", "duration_ms"],
+      "properties": {
+        "action_id": { "type": "string" },
+        "execution_id": { "type": "string", "format": "uuid" },
+        "resolution_id": { "type": "string", "format": "uuid" },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "result_hash": { "type": "string" }
+      }
+    },
+    "ActionDeniedPayload": {
+      "type": "object",
+      "required": ["action_id", "reason"],
+      "properties": {
+        "action_id": { "type": "string" },
+        "reason": { "type": "string" },
+        "policy_id": { "type": "string" }
+      }
+    },
+    "ActionFailedPayload": {
+      "type": "object",
+      "required": ["action_id", "error_code", "error_message"],
+      "properties": {
+        "action_id": { "type": "string" },
+        "execution_id": { "type": "string", "format": "uuid" },
+        "error_code": { "type": "string" },
+        "error_message": { "type": "string" },
+        "duration_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "PolicyEvaluatedPayload": {
+      "type": "object",
+      "required": ["policy_id", "result"],
+      "properties": {
+        "policy_id": { "type": "string" },
+        "result": {
+          "type": "string",
+          "enum": ["allow", "deny", "not_applicable"]
+        },
+        "action_id": { "type": "string" },
+        "evaluation_ms": { "type": "number" }
+      }
+    },
+    "PolicyViolatedPayload": {
+      "type": "object",
+      "required": ["policy_id", "violation_type"],
+      "properties": {
+        "policy_id": { "type": "string" },
+        "violation_type": {
+          "type": "string",
+          "enum": ["rate_limit", "budget", "denied_action", "invalid_parameters", "unauthorized"]
+        },
+        "details": { "type": "object" },
+        "action_id": { "type": "string" }
+      }
+    },
+    "ContextInjectedPayload": {
+      "type": "object",
+      "required": ["block_id", "source"],
+      "properties": {
+        "block_id": { "type": "string" },
+        "source": { "type": "string" },
+        "content_type": { "type": "string" },
+        "token_count": { "type": "integer", "minimum": 0 },
+        "priority": { "type": "integer" }
+      }
     }
   },
   "additionalProperties": false

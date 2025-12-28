@@ -2,17 +2,20 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cra.dev/schemas/carp-resolution.schema.json",
   "title": "CARP Resolution",
-  "description": "Context & Action Resolution Protocol resolution object",
+  "description": "Context & Action Resolution Protocol response object",
   "type": "object",
   "required": [
     "carp_version",
-    "trace_id",
-    "session_id",
+    "resolution_id",
+    "request_id",
+    "timestamp",
     "decision",
+    "context_blocks",
     "allowed_actions",
     "denied_actions",
+    "constraints",
     "ttl_seconds",
-    "timestamp"
+    "trace_id"
   ],
   "properties": {
     "carp_version": {
@@ -20,150 +23,232 @@
       "const": "1.0",
       "description": "CARP protocol version"
     },
-    "trace_id": {
+    "resolution_id": {
       "type": "string",
-      "minLength": 1,
-      "description": "Unique trace identifier for this resolution"
+      "format": "uuid",
+      "description": "UUIDv7 unique to this resolution"
     },
-    "session_id": {
+    "request_id": {
       "type": "string",
-      "minLength": 1,
-      "description": "Session this resolution belongs to"
+      "format": "uuid",
+      "description": "Request ID this resolves"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
     },
     "decision": {
-      "type": "string",
-      "enum": ["allow", "deny", "partial", "allow_with_constraints", "requires_approval"],
-      "description": "Overall decision for this resolution"
-    },
-    "allowed_actions": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/AllowedAction"
-      },
-      "description": "Actions the agent is allowed to perform"
-    },
-    "denied_actions": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/DeniedAction"
-      },
-      "description": "Actions that were denied with reasons"
+      "$ref": "#/$defs/Decision"
     },
     "context_blocks": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/ContextBlock"
       },
-      "description": "Context blocks to inject"
+      "description": "Context to inject into agent"
+    },
+    "allowed_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AllowedAction"
+      },
+      "description": "Actions the agent may execute"
+    },
+    "denied_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DeniedAction"
+      },
+      "description": "Actions explicitly denied"
     },
     "constraints": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/Constraint"
       },
-      "description": "Active constraints on behavior"
+      "description": "Active constraints on execution"
     },
     "ttl_seconds": {
       "type": "integer",
       "minimum": 0,
-      "description": "Time-to-live in seconds"
+      "maximum": 86400,
+      "description": "Resolution validity period"
     },
-    "timestamp": {
+    "trace_id": {
       "type": "string",
-      "format": "date-time",
-      "description": "When this resolution was created"
+      "format": "uuid",
+      "description": "Trace ID for this resolution"
     }
   },
   "$defs": {
-    "AllowedAction": {
+    "Decision": {
       "type": "object",
-      "required": ["action_id", "name", "parameters_schema", "risk_tier"],
+      "required": ["type"],
       "properties": {
-        "action_id": {
+        "type": {
           "type": "string",
-          "minLength": 1
-        },
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": {
-          "type": "string"
-        },
-        "parameters_schema": {
-          "type": "object"
-        },
-        "risk_tier": {
-          "type": "string",
-          "enum": ["low", "medium", "high", "critical"]
-        }
-      }
-    },
-    "DeniedAction": {
-      "type": "object",
-      "required": ["action_id", "policy_id", "reason"],
-      "properties": {
-        "action_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "policy_id": {
-          "type": "string",
-          "minLength": 1
+          "enum": ["allow", "deny", "partial", "requires_approval"],
+          "description": "Decision outcome"
         },
         "reason": {
-          "type": "string"
+          "type": ["string", "null"],
+          "description": "Human-readable reason"
         },
-        "is_permanent": {
-          "type": "boolean"
+        "approval_id": {
+          "type": ["string", "null"],
+          "description": "ID for approval workflow"
+        },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When this decision expires"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "ContextBlock": {
       "type": "object",
-      "required": ["block_id", "name", "content"],
+      "required": ["block_id", "source", "content_type", "content", "priority"],
       "properties": {
         "block_id": {
           "type": "string",
-          "minLength": 1
+          "description": "Unique block identifier"
+        },
+        "source": {
+          "type": "string",
+          "description": "Atlas ID that provided this block"
+        },
+        "content_type": {
+          "type": "string",
+          "enum": ["text/markdown", "text/plain", "application/json"],
+          "description": "MIME type of content"
+        },
+        "content": {
+          "type": "string",
+          "description": "The context content"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Ordering priority (higher = more important)"
+        },
+        "token_estimate": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Estimated token count"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional metadata"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AllowedAction": {
+      "type": "object",
+      "required": ["action_id", "name", "description"],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$",
+          "description": "Action identifier"
         },
         "name": {
           "type": "string",
-          "minLength": 1
+          "description": "Human-readable name"
         },
-        "content": {
-          "type": "string"
+        "description": {
+          "type": "string",
+          "description": "What the action does"
         },
-        "priority": {
-          "type": "integer"
+        "parameters_schema": {
+          "type": "object",
+          "description": "JSON Schema for parameters"
         },
-        "content_type": {
-          "type": "string"
+        "returns_schema": {
+          "type": "object",
+          "description": "JSON Schema for return value"
         },
-        "source_atlas": {
-          "type": "string"
+        "risk_tier": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "low"
+        },
+        "requires_confirmation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Requires user confirmation"
+        },
+        "idempotent": {
+          "type": "boolean",
+          "default": false,
+          "description": "Safe to retry"
+        },
+        "rate_limit": {
+          "$ref": "#/$defs/RateLimit"
         }
-      }
+      },
+      "additionalProperties": false
+    },
+    "DeniedAction": {
+      "type": "object",
+      "required": ["action_id", "reason"],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "description": "Denied action identifier"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why the action was denied"
+        },
+        "policy_id": {
+          "type": "string",
+          "description": "Policy that caused denial"
+        }
+      },
+      "additionalProperties": false
     },
     "Constraint": {
       "type": "object",
-      "required": ["constraint_id", "constraint_type", "description"],
+      "required": ["constraint_id", "type"],
       "properties": {
         "constraint_id": {
           "type": "string",
-          "minLength": 1
+          "description": "Constraint identifier"
         },
-        "constraint_type": {
+        "type": {
           "type": "string",
-          "enum": ["rate_limit", "time_window", "field_mask", "geo_restriction", "budget_limit", "custom"]
-        },
-        "description": {
-          "type": "string"
+          "enum": ["rate_limit", "budget", "time_window", "require_approval", "scope"],
+          "description": "Constraint type"
         },
         "parameters": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Constraint-specific parameters"
         }
-      }
+      },
+      "additionalProperties": false
+    },
+    "RateLimit": {
+      "type": "object",
+      "required": ["max_calls", "window_seconds"],
+      "properties": {
+        "max_calls": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum calls allowed"
+        },
+        "window_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Time window in seconds"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

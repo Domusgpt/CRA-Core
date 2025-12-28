@@ -1,24 +1,143 @@
 {
+  "$comment": "Fields marked with $dynamic are ignored during comparison",
   "carp_version": "1.0",
-  "decision": "partial",
+  "resolution_id": "$dynamic",
+  "request_id": "00000000-0000-0000-0000-000000000001",
+  "timestamp": "$dynamic",
+  "decision": {
+    "type": "allow",
+    "reason": null,
+    "approval_id": null,
+    "expires_at": null
+  },
+  "context_blocks": [
+    {
+      "block_id": "$dynamic",
+      "source": "com.cra.conformance.simple",
+      "content_type": "text/markdown",
+      "content": "$dynamic",
+      "priority": 100,
+      "token_estimate": "$dynamic"
+    }
+  ],
   "allowed_actions": [
     {
-      "action_id": "data.get",
-      "name": "Get Data",
-      "risk_tier": "low"
+      "action_id": "resource.get",
+      "name": "Get Resource",
+      "description": "Retrieve a resource by ID",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["resource_id"],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "description": "The resource identifier"
+          }
+        }
+      },
+      "returns_schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      },
+      "risk_tier": "low",
+      "requires_confirmation": false,
+      "idempotent": true
     },
     {
-      "action_id": "data.list",
-      "name": "List Data",
-      "risk_tier": "low"
+      "action_id": "resource.list",
+      "name": "List Resources",
+      "description": "List all resources",
+      "parameters_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
+        }
+      },
+      "returns_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "type": "object" }
+          },
+          "total": { "type": "integer" }
+        }
+      },
+      "risk_tier": "low",
+      "requires_confirmation": false,
+      "idempotent": true
+    },
+    {
+      "action_id": "resource.create",
+      "name": "Create Resource",
+      "description": "Create a new resource",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      },
+      "returns_schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "risk_tier": "medium",
+      "requires_confirmation": false,
+      "idempotent": false
+    },
+    {
+      "action_id": "resource.update",
+      "name": "Update Resource",
+      "description": "Update an existing resource",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["resource_id"],
+        "properties": {
+          "resource_id": { "type": "string" },
+          "name": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      },
+      "returns_schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "risk_tier": "medium",
+      "requires_confirmation": false,
+      "idempotent": true
     }
   ],
   "denied_actions": [
     {
-      "action_id": "data.delete",
-      "policy_id": "deny-delete",
-      "reason": "Delete operations are not allowed"
+      "action_id": "resource.delete",
+      "reason": "Deletion not permitted in test environment",
+      "policy_id": "deny-delete"
     }
   ],
-  "_note": "Fields like trace_id, session_id, timestamp, ttl_seconds are ignored in comparison"
+  "constraints": [],
+  "ttl_seconds": 3600,
+  "trace_id": "$dynamic"
 }
