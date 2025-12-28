@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["ffi"]
 ffi = []
 conformance = []
+async-runtime = ["tokio", "async-trait", "parking_lot", "num_cpus"]
 
 [dependencies]
 serde.workspace = true
@@ -26,6 +27,12 @@ regex.workspace = true
 glob.workspace = true
 jsonschema.workspace = true
 libc.workspace = true
+
+# Async runtime (optional)
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros"], optional = true }
+async-trait = { version = "0.1", optional = true }
+parking_lot = { version = "0.12", optional = true }
+num_cpus = { version = "1.16", optional = true }
 
 [dev-dependencies]
 criterion.workspace = true

@@ -68,6 +68,9 @@ pub mod storage;
 #[cfg(feature = "ffi")]
 pub mod ffi;
 
+#[cfg(feature = "async-runtime")]
+pub mod runtime;
+
 // Re-export main types
 pub use carp::{
     CARPRequest, CARPResolution, Decision, AllowedAction, DeniedAction,

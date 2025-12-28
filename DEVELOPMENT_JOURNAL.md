@@ -1153,7 +1153,92 @@ CRA follows the same model:
 
 **Total: 86 tests passing**
 
-The CRA Rust implementation is now feature-complete for the core functionality:
+---
+
+## 16. Async Runtime for Swarms (2025-12-28)
+
+### Reconsideration
+
+After further discussion, the sync-only decision was reconsidered for **swarm scenarios**:
+
+| Sync Issue | Impact on Swarms |
+|------------|------------------|
+| Thread-per-session | 1000s of agents = 1000s of threads |
+| Blocking storage | DB writes stall all requests |
+| No streaming | Can't push traces to Kafka efficiently |
+| No backpressure | System crashes under load |
+
+### Solution: Optional `async-runtime` Feature
+
+Added `cra-core/src/runtime/mod.rs` with:
+
+```toml
+[features]
+async-runtime = ["tokio", "async-trait", "parking_lot", "num_cpus"]
+```
+
+### Key Components
+
+1. **AsyncRuntime** - Wraps sync Resolver with async I/O:
+   ```rust
+   let runtime = AsyncRuntime::new(config).await?;
+   let resolution = runtime.resolve(&request).await?;
+   ```
+
+2. **AsyncStorageBackend** trait - For async databases:
+   ```rust
+   #[async_trait]
+   pub trait AsyncStorageBackend: Send + Sync {
+       async fn store_event(&self, event: &TRACEEvent) -> Result<()>;
+       // ...
+   }
+   ```
+
+3. **EventSubscriber** trait - For trace streaming:
+   ```rust
+   #[async_trait]
+   pub trait EventSubscriber: Send + Sync {
+       async fn on_event(&self, event: &TRACEEvent) -> Result<()>;
+   }
+   ```
+
+4. **SwarmCoordinator** (stub) - Future multi-agent coordination
+
+### Architecture
+
+```
+Single Agent:                    Swarm:
+┌─────────────────┐             ┌─────────────────────────────────┐
+│ Resolver (sync) │             │ AsyncRuntime                    │
+│   - Fast        │             │   ┌─────────────────────────┐   │
+│   - Simple      │             │   │ Resolver Pool           │   │
+│   - Embedded    │             │   │ (spawn_blocking)        │   │
+└─────────────────┘             │   └───────────┬─────────────┘   │
+                                │               ↓                 │
+                                │   ┌─────────────────────────┐   │
+                                │   │ Async Storage           │   │
+                                │   │ (Postgres, Redis)       │   │
+                                │   └───────────┬─────────────┘   │
+                                │               ↓                 │
+                                │   ┌─────────────────────────┐   │
+                                │   │ Event Subscribers       │   │
+                                │   │ (Kafka, WebSocket)      │   │
+                                │   └─────────────────────────┘   │
+                                └─────────────────────────────────┘
+```
+
+### Usage Guidance
+
+| Scenario | Recommendation |
+|----------|----------------|
+| Single agent | Use `Resolver` directly |
+| Few agents (<10) | Use `spawn_blocking` wrapper |
+| Many agents (10-100) | Use `AsyncRuntime` |
+| Swarm (100+) | Use `AsyncRuntime` + async storage |
+
+### Feature Summary
+
+The CRA Rust implementation now supports both modes:
 
 | Feature | Status |
 |---------|--------|
@@ -1166,9 +1251,9 @@ The CRA Rust implementation is now feature-complete for the core functionality:
 | Python Bindings | ✅ Complete |
 | Node.js Bindings | ✅ Scaffolded |
 | WASM Bindings | ✅ Scaffolded |
-| Storage Backends | ✅ 3 implementations |
+| Storage Backends | ✅ 3 sync + async trait |
 | Error Handling | ✅ Production-grade |
-| Async Support | ⏸️ Deferred (by design) |
+| Async Runtime | ✅ Optional feature |
 
 ---
 
