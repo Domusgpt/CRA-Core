@@ -127,7 +127,7 @@ class DenyPatternRule(PolicyRule):
         description: str = "",
     ) -> None:
         super().__init__(rule_id, description)
-        self.patterns = [re.compile(self._glob_to_regex(p)) for p in patterns]
+        self.patterns = [re.compile(self._glob_to_regex(p), re.IGNORECASE) for p in patterns]
         self.pattern_strings = patterns
 
     def _glob_to_regex(self, pattern: str) -> str:
@@ -138,29 +138,59 @@ class DenyPatternRule(PolicyRule):
         escaped = escaped.replace(r"\*", ".*").replace(r"\?", ".")
         return f"^{escaped}$"
 
+    def _normalize_target(self, target: str) -> str:
+        """Normalize human-readable targets for consistent pattern matching.
+
+        This makes phrases such as "Deploy to production environment" compatible
+        with dot-delimited deny patterns (e.g. "*.production.*") by replacing
+        whitespace and punctuation with dots, collapsing repeats, and lowering
+        case.
+        """
+
+        normalized = re.sub(r"[^a-zA-Z0-9]+", ".", target.lower())
+        return re.sub(r"\.+", ".", normalized).strip(".")
+
+    def _candidate_targets(self, target: str) -> list[str]:
+        """Return candidate strings (original + normalized when useful)."""
+
+        candidates = [target]
+        # Only add a normalized candidate when the target contains human-friendly
+        # separators rather than dot-delimited identifiers to avoid surprising
+        # over-matching on already-scoped action/resource IDs.
+        if re.search(r"[^a-zA-Z0-9_.-]", target):
+            normalized = self._normalize_target(target)
+            if normalized and normalized not in candidates:
+                candidates.append(normalized)
+        return candidates
+
     def evaluate(self, context: PolicyContext) -> PolicyDecision | None:
         """Check if action or resource matches deny patterns."""
         targets = [context.action_id, context.resource, context.goal]
         targets = [t for t in targets if t]
 
         for target in targets:
-            for i, pattern in enumerate(self.patterns):
-                if pattern.match(target):
-                    return PolicyDecision(
-                        effect=PolicyEffect.DENY,
-                        rule_id=self.rule_id,
-                        reason=f"Denied by pattern: {self.pattern_strings[i]}",
-                        violations=[
-                            PolicyViolation(
-                                rule_id=self.rule_id,
-                                reason=f"Matched deny pattern",
-                                details={
-                                    "pattern": self.pattern_strings[i],
-                                    "matched": target,
-                                },
-                            )
-                        ],
-                    )
+            for candidate in self._candidate_targets(target):
+                for i, pattern in enumerate(self.patterns):
+                    if pattern.match(candidate):
+                        details = {
+                            "pattern": self.pattern_strings[i],
+                            "matched": target,
+                        }
+                        if candidate != target:
+                            details["normalized_match"] = candidate
+
+                        return PolicyDecision(
+                            effect=PolicyEffect.DENY,
+                            rule_id=self.rule_id,
+                            reason=f"Denied by pattern: {self.pattern_strings[i]}",
+                            violations=[
+                                PolicyViolation(
+                                    rule_id=self.rule_id,
+                                    reason="Matched deny pattern",
+                                    details=details,
+                                )
+                            ],
+                        )
         return None
 
 
