@@ -1,0 +1,47 @@
+{
+  "name": "cra-core",
+  "version": "0.1.0",
+  "description": "Context Registry Agents - Authority layer for agentic systems with CARP and TRACE protocols",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "clean": "npm run clean --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "eslint packages/*/src",
+    "typecheck": "tsc --build packages/*/tsconfig.json",
+    "dev": "npm run dev --workspace=packages/cli",
+    "cli": "node packages/cli/dist/index.js",
+    "serve": "npm run start --workspace=packages/server",
+    "serve:dev": "npm run dev --workspace=packages/server"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.56.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/cra-core"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "llm",
+    "context",
+    "governance",
+    "telemetry"
+  ],
+  "license": "MIT"
+}

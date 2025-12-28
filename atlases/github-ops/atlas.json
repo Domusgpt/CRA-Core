@@ -1,0 +1,326 @@
+{
+  "atlas_version": "0.1",
+
+  "metadata": {
+    "id": "com.cra.github-ops",
+    "name": "GitHub Operations",
+    "version": "0.1.0",
+    "description": "Context and actions for GitHub repository management",
+    "authors": [
+      {
+        "name": "CRA Team",
+        "email": "team@cra.dev"
+      }
+    ],
+    "license": {
+      "type": "free",
+      "spdx": "MIT"
+    },
+    "keywords": ["github", "git", "repository", "issues", "pull-requests"]
+  },
+
+  "domains": [
+    {
+      "id": "github.issues",
+      "name": "GitHub Issues",
+      "description": "Issue tracking and management",
+      "risk_tier": "low"
+    },
+    {
+      "id": "github.pulls",
+      "name": "GitHub Pull Requests",
+      "description": "Pull request management and review",
+      "risk_tier": "medium"
+    },
+    {
+      "id": "github.repos",
+      "name": "GitHub Repositories",
+      "description": "Repository configuration and management",
+      "risk_tier": "high"
+    }
+  ],
+
+  "context_packs": [
+    {
+      "id": "issues-guide",
+      "domain": "github.issues",
+      "source": "context/issues-guide.md",
+      "format": "markdown",
+      "ttl_seconds": 600,
+      "tags": ["issues", "tracking", "labels"],
+      "evidence_sources": ["https://docs.github.com/en/issues"],
+      "priority": 10
+    },
+    {
+      "id": "pr-guide",
+      "domain": "github.pulls",
+      "source": "context/pr-guide.md",
+      "format": "markdown",
+      "ttl_seconds": 600,
+      "tags": ["pull-requests", "reviews", "merging"],
+      "evidence_sources": ["https://docs.github.com/en/pull-requests"],
+      "priority": 10
+    },
+    {
+      "id": "repo-settings",
+      "domain": "github.repos",
+      "source": "context/repo-settings.md",
+      "format": "markdown",
+      "ttl_seconds": 300,
+      "tags": ["settings", "branches", "protection"],
+      "evidence_sources": ["https://docs.github.com/en/repositories"],
+      "priority": 5
+    }
+  ],
+
+  "policies": [
+    {
+      "id": "github-safety",
+      "name": "GitHub Safety Policy",
+      "version": "1.0",
+      "description": "Safety rules for GitHub operations",
+      "rules": [
+        {
+          "id": "require-approval-high-risk",
+          "description": "Require approval for high-risk operations",
+          "condition": {
+            "type": "risk_tier",
+            "operator": "in",
+            "value": ["high", "critical"]
+          },
+          "effect": "require_approval",
+          "priority": 100,
+          "message": "High-risk operations require explicit approval"
+        },
+        {
+          "id": "allow-issues",
+          "description": "Allow issue operations by default",
+          "condition": {
+            "type": "domain",
+            "operator": "eq",
+            "value": "github.issues"
+          },
+          "effect": "allow",
+          "priority": 50
+        },
+        {
+          "id": "rate-limit-api",
+          "description": "Rate limit API calls",
+          "condition": {
+            "type": "action_type",
+            "operator": "matches",
+            "value": "^api\\.github\\."
+          },
+          "effect": "allow",
+          "priority": 10
+        }
+      ]
+    }
+  ],
+
+  "actions": [
+    {
+      "id": "create-issue",
+      "type": "api.github.create_issue",
+      "name": "Create Issue",
+      "description": "Create a new issue in a GitHub repository",
+      "domain": "github.issues",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "description": "Repository owner"
+          },
+          "repo": {
+            "type": "string",
+            "description": "Repository name"
+          },
+          "title": {
+            "type": "string",
+            "description": "Issue title",
+            "maxLength": 256
+          },
+          "body": {
+            "type": "string",
+            "description": "Issue body (markdown)"
+          },
+          "labels": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Labels to apply"
+          },
+          "assignees": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Users to assign"
+          }
+        },
+        "required": ["owner", "repo", "title"]
+      },
+      "examples": [
+        {
+          "description": "Create a bug report",
+          "parameters": {
+            "owner": "myorg",
+            "repo": "myapp",
+            "title": "Bug: Login fails on mobile",
+            "body": "## Description\nThe login button does not work on iOS Safari.",
+            "labels": ["bug", "mobile"]
+          },
+          "expected_outcome": "Issue created with number #123"
+        }
+      ],
+      "risk_tier": "low"
+    },
+    {
+      "id": "close-issue",
+      "type": "api.github.close_issue",
+      "name": "Close Issue",
+      "description": "Close an existing issue",
+      "domain": "github.issues",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "owner": { "type": "string" },
+          "repo": { "type": "string" },
+          "issue_number": { "type": "integer" },
+          "comment": { "type": "string", "description": "Optional closing comment" }
+        },
+        "required": ["owner", "repo", "issue_number"]
+      },
+      "examples": [
+        {
+          "description": "Close a resolved issue",
+          "parameters": {
+            "owner": "myorg",
+            "repo": "myapp",
+            "issue_number": 123,
+            "comment": "Fixed in PR #456"
+          }
+        }
+      ],
+      "risk_tier": "low"
+    },
+    {
+      "id": "create-pr",
+      "type": "api.github.create_pull_request",
+      "name": "Create Pull Request",
+      "description": "Create a new pull request",
+      "domain": "github.pulls",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "owner": { "type": "string" },
+          "repo": { "type": "string" },
+          "title": { "type": "string", "maxLength": 256 },
+          "body": { "type": "string" },
+          "head": { "type": "string", "description": "Branch with changes" },
+          "base": { "type": "string", "description": "Target branch" },
+          "draft": { "type": "boolean", "default": false }
+        },
+        "required": ["owner", "repo", "title", "head", "base"]
+      },
+      "examples": [
+        {
+          "description": "Create a feature PR",
+          "parameters": {
+            "owner": "myorg",
+            "repo": "myapp",
+            "title": "Add user profile page",
+            "body": "## Summary\nAdds a new user profile page with settings.",
+            "head": "feature/user-profile",
+            "base": "main"
+          }
+        }
+      ],
+      "risk_tier": "medium"
+    },
+    {
+      "id": "merge-pr",
+      "type": "api.github.merge_pull_request",
+      "name": "Merge Pull Request",
+      "description": "Merge a pull request into the base branch",
+      "domain": "github.pulls",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "owner": { "type": "string" },
+          "repo": { "type": "string" },
+          "pull_number": { "type": "integer" },
+          "merge_method": {
+            "type": "string",
+            "enum": ["merge", "squash", "rebase"],
+            "default": "squash"
+          },
+          "commit_title": { "type": "string" },
+          "commit_message": { "type": "string" }
+        },
+        "required": ["owner", "repo", "pull_number"]
+      },
+      "examples": [],
+      "risk_tier": "high"
+    },
+    {
+      "id": "update-branch-protection",
+      "type": "api.github.update_branch_protection",
+      "name": "Update Branch Protection",
+      "description": "Update branch protection rules",
+      "domain": "github.repos",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "owner": { "type": "string" },
+          "repo": { "type": "string" },
+          "branch": { "type": "string" },
+          "required_approving_review_count": { "type": "integer", "minimum": 0, "maximum": 6 },
+          "require_code_owner_reviews": { "type": "boolean" },
+          "required_status_checks": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["owner", "repo", "branch"]
+      },
+      "examples": [],
+      "risk_tier": "critical"
+    }
+  ],
+
+  "adapters": [
+    {
+      "platform": "openai",
+      "config_file": "adapters/openai.json",
+      "tool_mappings": [
+        { "action_id": "create-issue", "platform_tool_name": "github_create_issue" },
+        { "action_id": "close-issue", "platform_tool_name": "github_close_issue" },
+        { "action_id": "create-pr", "platform_tool_name": "github_create_pr" }
+      ]
+    },
+    {
+      "platform": "claude",
+      "config_file": "adapters/claude.json"
+    },
+    {
+      "platform": "mcp",
+      "config_file": "adapters/mcp.json"
+    }
+  ],
+
+  "tests": [
+    {
+      "id": "conformance",
+      "name": "CARP Conformance Tests",
+      "type": "conformance",
+      "test_files": ["tests/conformance.test.ts"]
+    },
+    {
+      "id": "golden-traces",
+      "name": "Golden Trace Tests",
+      "type": "golden_trace",
+      "test_files": ["tests/golden/"]
+    }
+  ],
+
+  "dependencies": []
+}

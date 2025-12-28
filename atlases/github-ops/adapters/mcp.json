@@ -1,0 +1,93 @@
+{
+  "platform": "mcp",
+  "version": "1.0",
+  "server": {
+    "name": "github-ops",
+    "version": "0.1.0",
+    "description": "GitHub operations via CRA"
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": false
+  },
+  "tools": [
+    {
+      "name": "create_issue",
+      "description": "Create a new GitHub issue",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "owner": { "type": "string", "description": "Repository owner" },
+          "repo": { "type": "string", "description": "Repository name" },
+          "title": { "type": "string", "description": "Issue title" },
+          "body": { "type": "string", "description": "Issue body (markdown)" },
+          "labels": { "type": "array", "items": { "type": "string" } },
+          "assignees": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["owner", "repo", "title"]
+      }
+    },
+    {
+      "name": "close_issue",
+      "description": "Close a GitHub issue",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "owner": { "type": "string" },
+          "repo": { "type": "string" },
+          "issue_number": { "type": "integer" },
+          "comment": { "type": "string" }
+        },
+        "required": ["owner", "repo", "issue_number"]
+      }
+    },
+    {
+      "name": "create_pull_request",
+      "description": "Create a GitHub pull request",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "owner": { "type": "string" },
+          "repo": { "type": "string" },
+          "title": { "type": "string" },
+          "body": { "type": "string" },
+          "head": { "type": "string" },
+          "base": { "type": "string" },
+          "draft": { "type": "boolean" }
+        },
+        "required": ["owner", "repo", "title", "head", "base"]
+      }
+    },
+    {
+      "name": "merge_pull_request",
+      "description": "Merge a GitHub pull request",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "owner": { "type": "string" },
+          "repo": { "type": "string" },
+          "pull_number": { "type": "integer" },
+          "merge_method": { "type": "string", "enum": ["merge", "squash", "rebase"] },
+          "commit_title": { "type": "string" },
+          "commit_message": { "type": "string" }
+        },
+        "required": ["owner", "repo", "pull_number"]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "github://issues-guide",
+      "name": "Issues Guide",
+      "description": "Best practices for GitHub issues",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "github://pr-guide",
+      "name": "Pull Requests Guide",
+      "description": "Best practices for pull requests",
+      "mimeType": "text/markdown"
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "platform": "claude",
+  "version": "1.0",
+  "system_prompt_prefix": "You have access to GitHub operations through the CRA system. Always use the CARP-resolved permissions when interacting with GitHub.",
+  "tools": [
+    {
+      "name": "github_create_issue",
+      "description": "Create a new issue in a GitHub repository. Use this to report bugs, request features, or track tasks.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "description": "The account owner of the repository (username or organization)"
+          },
+          "repo": {
+            "type": "string",
+            "description": "The name of the repository"
+          },
+          "title": {
+            "type": "string",
+            "description": "The title of the issue (keep concise, under 60 characters)"
+          },
+          "body": {
+            "type": "string",
+            "description": "The contents of the issue in markdown format"
+          },
+          "labels": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Labels to apply (e.g., 'bug', 'enhancement')"
+          },
+          "assignees": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "GitHub usernames to assign"
+          }
+        },
+        "required": ["owner", "repo", "title"]
+      }
+    },
+    {
+      "name": "github_close_issue",
+      "description": "Close an existing GitHub issue. Use when an issue is resolved or no longer relevant.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "description": "The account owner of the repository"
+          },
+          "repo": {
+            "type": "string",
+            "description": "The name of the repository"
+          },
+          "issue_number": {
+            "type": "integer",
+            "description": "The issue number to close"
+          },
+          "comment": {
+            "type": "string",
+            "description": "Optional closing comment explaining the resolution"
+          }
+        },
+        "required": ["owner", "repo", "issue_number"]
+      }
+    },
+    {
+      "name": "github_create_pull_request",
+      "description": "Create a new pull request to propose code changes for review and merging.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "description": "The account owner of the repository"
+          },
+          "repo": {
+            "type": "string",
+            "description": "The name of the repository"
+          },
+          "title": {
+            "type": "string",
+            "description": "The title of the pull request"
+          },
+          "body": {
+            "type": "string",
+            "description": "The description of the pull request in markdown"
+          },
+          "head": {
+            "type": "string",
+            "description": "The branch containing the changes"
+          },
+          "base": {
+            "type": "string",
+            "description": "The branch to merge into (usually 'main' or 'master')"
+          },
+          "draft": {
+            "type": "boolean",
+            "description": "Create as a draft PR if true"
+          }
+        },
+        "required": ["owner", "repo", "title", "head", "base"]
+      }
+    }
+  ]
+}
