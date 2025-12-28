@@ -1,0 +1,103 @@
+{
+  "version": "1.0",
+  "endpoints": {
+    "query.run": {
+      "method": "POST",
+      "path": "/api/query/run",
+      "parameters": {
+        "sql": {
+          "type": "string",
+          "required": true,
+          "description": "SQL query to execute"
+        },
+        "database": {
+          "type": "string",
+          "required": true,
+          "description": "Target database"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "default": 300,
+          "maximum": 300
+        },
+        "limit": {
+          "type": "integer",
+          "default": 1000,
+          "maximum": 100000
+        }
+      }
+    },
+    "query.explain": {
+      "method": "POST",
+      "path": "/api/query/explain",
+      "parameters": {
+        "sql": {
+          "type": "string",
+          "required": true
+        },
+        "database": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    "report.generate": {
+      "method": "POST",
+      "path": "/api/reports/generate",
+      "parameters": {
+        "template_id": {
+          "type": "string",
+          "required": true
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Report parameters"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["pdf", "html", "xlsx"],
+          "default": "pdf"
+        }
+      }
+    },
+    "export.csv": {
+      "method": "POST",
+      "path": "/api/export/csv",
+      "parameters": {
+        "query_id": {
+          "type": "string",
+          "description": "Previous query ID to export"
+        },
+        "sql": {
+          "type": "string",
+          "description": "SQL query for fresh export"
+        },
+        "database": {
+          "type": "string"
+        },
+        "include_headers": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "pipeline.trigger": {
+      "method": "POST",
+      "path": "/api/pipelines/{pipeline_id}/trigger",
+      "parameters": {
+        "pipeline_id": {
+          "type": "string",
+          "required": true
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Pipeline run parameters"
+        },
+        "wait_for_completion": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  }
+}

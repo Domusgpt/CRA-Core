@@ -1,0 +1,30 @@
+{
+  "atlas_version": "1.0",
+  "id": "com.example.hello-world",
+  "version": "1.0.0",
+  "name": "Hello World Atlas",
+  "description": "Example Atlas demonstrating CRA concepts",
+  "capabilities": [
+    "greeting.send",
+    "greeting.customize"
+  ],
+  "context_packs": [
+    "context/overview.md",
+    "context/api-reference.json"
+  ],
+  "policies": [
+    "policies/default.policy.json"
+  ],
+  "adapters": {
+    "openai": "adapters/openai.tools.json",
+    "anthropic": "adapters/anthropic.skill.md",
+    "mcp": "adapters/mcp.server.json"
+  },
+  "dependencies": [],
+  "license": "MIT",
+  "certification": {
+    "carp_compliant": true,
+    "trace_compliant": true,
+    "last_certified": "2025-01-01"
+  }
+}

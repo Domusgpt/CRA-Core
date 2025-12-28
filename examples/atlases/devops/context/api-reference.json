@@ -1,0 +1,109 @@
+{
+  "version": "1.0",
+  "endpoints": {
+    "deploy.staging": {
+      "method": "POST",
+      "path": "/api/deploy/staging",
+      "parameters": {
+        "service": {
+          "type": "string",
+          "required": true,
+          "description": "Service to deploy"
+        },
+        "version": {
+          "type": "string",
+          "required": true,
+          "description": "Version or commit SHA"
+        },
+        "config_overrides": {
+          "type": "object",
+          "description": "Optional config overrides"
+        }
+      }
+    },
+    "deploy.production": {
+      "method": "POST",
+      "path": "/api/deploy/production",
+      "parameters": {
+        "service": {
+          "type": "string",
+          "required": true
+        },
+        "version": {
+          "type": "string",
+          "required": true
+        },
+        "approval_id": {
+          "type": "string",
+          "required": true,
+          "description": "Approval ticket ID"
+        },
+        "canary_percentage": {
+          "type": "integer",
+          "default": 10,
+          "description": "Initial canary traffic percentage"
+        }
+      }
+    },
+    "deploy.rollback": {
+      "method": "POST",
+      "path": "/api/deploy/rollback",
+      "parameters": {
+        "service": {
+          "type": "string",
+          "required": true
+        },
+        "target_version": {
+          "type": "string",
+          "description": "Version to rollback to (default: previous)"
+        },
+        "incident_id": {
+          "type": "string",
+          "description": "Related incident ID"
+        }
+      }
+    },
+    "infra.scale": {
+      "method": "POST",
+      "path": "/api/infra/scale",
+      "parameters": {
+        "service": {
+          "type": "string",
+          "required": true
+        },
+        "replicas": {
+          "type": "integer",
+          "required": true,
+          "minimum": 1,
+          "maximum": 100
+        },
+        "reason": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    "logs.search": {
+      "method": "GET",
+      "path": "/api/logs/search",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "required": true
+        },
+        "service": {
+          "type": "string"
+        },
+        "time_range": {
+          "type": "string",
+          "default": "1h",
+          "enum": ["15m", "1h", "6h", "24h", "7d"]
+        },
+        "limit": {
+          "type": "integer",
+          "default": 100
+        }
+      }
+    }
+  }
+}

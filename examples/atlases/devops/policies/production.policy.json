@@ -1,0 +1,61 @@
+{
+  "policy_version": "1.0",
+  "id": "devops-production",
+  "name": "Production Safety Policy",
+  "rules": [
+    {
+      "id": "prod-deploy-approval",
+      "type": "approval",
+      "description": "Production deployments require approval",
+      "action": "deploy.production",
+      "approvers": ["platform-team", "service-owner"],
+      "min_approvers": 1
+    },
+    {
+      "id": "prod-deploy-freeze",
+      "type": "deny",
+      "description": "No production deploys on weekends",
+      "action": "deploy.production",
+      "condition": {
+        "type": "time_window",
+        "deny_days": ["saturday", "sunday"],
+        "deny_hours": {"after": "22:00", "before": "06:00"}
+      },
+      "reason": "Production deploys blocked during freeze window"
+    },
+    {
+      "id": "scale-limit",
+      "type": "constraint",
+      "description": "Limit scaling factor",
+      "action": "infra.scale",
+      "constraint": {
+        "type": "relative",
+        "max_increase_factor": 2,
+        "require_approval_above": 3
+      }
+    },
+    {
+      "id": "rollback-creates-incident",
+      "type": "trigger",
+      "description": "Rollbacks automatically create incidents",
+      "action": "deploy.rollback",
+      "triggers": [
+        {
+          "action": "incident.create",
+          "parameters": {
+            "severity": "high",
+            "type": "rollback",
+            "auto_generated": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "deny-direct-db-access",
+      "type": "deny",
+      "description": "No direct database modifications",
+      "pattern": "db.*",
+      "reason": "Database operations must go through migrations"
+    }
+  ]
+}

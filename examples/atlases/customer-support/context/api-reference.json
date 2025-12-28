@@ -1,0 +1,99 @@
+{
+  "version": "1.0",
+  "endpoints": {
+    "ticket.create": {
+      "method": "POST",
+      "path": "/api/tickets",
+      "parameters": {
+        "customer_id": {
+          "type": "string",
+          "required": true,
+          "description": "Customer identifier"
+        },
+        "subject": {
+          "type": "string",
+          "required": true,
+          "description": "Ticket subject"
+        },
+        "description": {
+          "type": "string",
+          "required": true,
+          "description": "Detailed description"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "urgent"],
+          "default": "medium"
+        }
+      }
+    },
+    "ticket.update": {
+      "method": "PATCH",
+      "path": "/api/tickets/{ticket_id}",
+      "parameters": {
+        "ticket_id": {
+          "type": "string",
+          "required": true
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "pending", "in_progress", "resolved", "closed"]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "ticket.escalate": {
+      "method": "POST",
+      "path": "/api/tickets/{ticket_id}/escalate",
+      "parameters": {
+        "ticket_id": {
+          "type": "string",
+          "required": true
+        },
+        "reason": {
+          "type": "string",
+          "required": true
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["high", "urgent"],
+          "default": "high"
+        }
+      }
+    },
+    "kb.search": {
+      "method": "GET",
+      "path": "/api/kb/search",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "required": true
+        },
+        "limit": {
+          "type": "integer",
+          "default": 5
+        }
+      }
+    },
+    "refund.request": {
+      "method": "POST",
+      "path": "/api/refunds",
+      "parameters": {
+        "order_id": {
+          "type": "string",
+          "required": true
+        },
+        "amount": {
+          "type": "number",
+          "required": true
+        },
+        "reason": {
+          "type": "string",
+          "required": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,173 @@
+{
+  "atlas_version": "1.0",
+  "atlas_id": "com.cra.conformance.simple",
+  "version": "1.0.0",
+  "name": "Simple Conformance Atlas",
+  "description": "Minimal atlas for conformance testing",
+  "domains": ["testing"],
+  "capabilities": [
+    {
+      "capability_id": "resource.read",
+      "name": "Read Resources",
+      "description": "Read-only resource access",
+      "actions": ["resource.get", "resource.list"]
+    },
+    {
+      "capability_id": "resource.write",
+      "name": "Write Resources",
+      "description": "Create and update resources",
+      "actions": ["resource.create", "resource.update"]
+    }
+  ],
+  "context_packs": [
+    {
+      "pack_id": "overview",
+      "name": "Resource Overview",
+      "files": ["context/overview.md"],
+      "priority": 100
+    }
+  ],
+  "policies": [
+    {
+      "policy_id": "allow-read",
+      "type": "allow",
+      "actions": ["resource.get", "resource.list"],
+      "priority": 0
+    },
+    {
+      "policy_id": "allow-write",
+      "type": "allow",
+      "actions": ["resource.create", "resource.update"],
+      "priority": 0
+    },
+    {
+      "policy_id": "deny-delete",
+      "type": "deny",
+      "actions": ["resource.delete"],
+      "priority": 100,
+      "parameters": {
+        "reason": "Deletion not permitted in test environment"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "action_id": "resource.get",
+      "name": "Get Resource",
+      "description": "Retrieve a resource by ID",
+      "risk_tier": "low",
+      "idempotent": true,
+      "parameters_schema": {
+        "type": "object",
+        "required": ["resource_id"],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "description": "The resource identifier"
+          }
+        }
+      },
+      "returns_schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      }
+    },
+    {
+      "action_id": "resource.list",
+      "name": "List Resources",
+      "description": "List all resources",
+      "risk_tier": "low",
+      "idempotent": true,
+      "parameters_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
+        }
+      },
+      "returns_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "type": "object" }
+          },
+          "total": { "type": "integer" }
+        }
+      }
+    },
+    {
+      "action_id": "resource.create",
+      "name": "Create Resource",
+      "description": "Create a new resource",
+      "risk_tier": "medium",
+      "idempotent": false,
+      "parameters_schema": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      },
+      "returns_schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    {
+      "action_id": "resource.update",
+      "name": "Update Resource",
+      "description": "Update an existing resource",
+      "risk_tier": "medium",
+      "idempotent": true,
+      "parameters_schema": {
+        "type": "object",
+        "required": ["resource_id"],
+        "properties": {
+          "resource_id": { "type": "string" },
+          "name": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      },
+      "returns_schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    {
+      "action_id": "resource.delete",
+      "name": "Delete Resource",
+      "description": "Delete a resource (denied by policy)",
+      "risk_tier": "high",
+      "idempotent": true,
+      "parameters_schema": {
+        "type": "object",
+        "required": ["resource_id"],
+        "properties": {
+          "resource_id": { "type": "string" }
+        }
+      }
+    }
+  ]
+}

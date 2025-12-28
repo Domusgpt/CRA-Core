@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cra.dev/schemas/atlas-manifest.schema.json",
+  "title": "Atlas Manifest",
+  "description": "CRA Atlas package manifest specification",
+  "type": "object",
+  "required": [
+    "atlas_version",
+    "atlas_id",
+    "version",
+    "name",
+    "description"
+  ],
+  "properties": {
+    "atlas_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Atlas specification version"
+    },
+    "atlas_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)+$",
+      "description": "Unique identifier in reverse domain notation",
+      "examples": ["com.example.customer-support", "org.acme.devops"]
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+      "description": "Semantic version (semver 2.0.0)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Human-readable name"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Brief description of the Atlas"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of authors"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier"
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "description": "Project homepage URL"
+    },
+    "repository": {
+      "type": "string",
+      "format": "uri",
+      "description": "Source repository URL"
+    },
+    "domains": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Domain tags for discovery"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Capability"
+      },
+      "description": "Grouped capabilities"
+    },
+    "context_packs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ContextPack"
+      },
+      "description": "Context document collections"
+    },
+    "policies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Policy"
+      },
+      "description": "Governance policies"
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Action"
+      },
+      "description": "Available actions"
+    },
+    "adapters": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/AdapterConfig"
+      },
+      "description": "Platform-specific configurations"
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Atlas dependencies with version ranges"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional metadata"
+    }
+  },
+  "$defs": {
+    "Capability": {
+      "type": "object",
+      "required": ["capability_id", "name"],
+      "properties": {
+        "capability_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)*$",
+          "description": "Capability identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this capability provides"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Action IDs in this capability"
+        },
+        "context_packs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Context pack IDs for this capability"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ContextPack": {
+      "type": "object",
+      "required": ["pack_id", "name", "files"],
+      "properties": {
+        "pack_id": {
+          "type": "string",
+          "description": "Pack identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What context this provides"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Relative paths to context files"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "default": 100,
+          "description": "Injection priority"
+        },
+        "conditions": {
+          "$ref": "#/$defs/Conditions",
+          "description": "When to include this pack"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum tokens to inject"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Policy": {
+      "type": "object",
+      "required": ["policy_id", "type"],
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "description": "Policy identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this policy does"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["allow", "deny", "rate_limit", "require_approval", "budget", "scope"],
+          "description": "Policy type"
+        },
+        "priority": {
+          "type": "integer",
+          "default": 0,
+          "description": "Evaluation priority (higher = earlier)"
+        },
+        "conditions": {
+          "$ref": "#/$defs/Conditions",
+          "description": "When policy applies"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actions this policy affects (glob patterns)"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Policy-specific parameters"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Action": {
+      "type": "object",
+      "required": ["action_id", "name", "description"],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$",
+          "description": "Action identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What the action does"
+        },
+        "parameters_schema": {
+          "type": "object",
+          "description": "JSON Schema for input parameters"
+        },
+        "returns_schema": {
+          "type": "object",
+          "description": "JSON Schema for return value"
+        },
+        "risk_tier": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "low",
+          "description": "Risk classification"
+        },
+        "idempotent": {
+          "type": "boolean",
+          "default": false,
+          "description": "Safe to retry without side effects"
+        },
+        "requires_confirmation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Requires user confirmation"
+        },
+        "executor": {
+          "type": "string",
+          "description": "Executor identifier or endpoint"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "default": 30,
+          "description": "Execution timeout"
+        },
+        "rate_limit": {
+          "type": "object",
+          "properties": {
+            "max_calls": { "type": "integer", "minimum": 1 },
+            "window_seconds": { "type": "integer", "minimum": 1 }
+          },
+          "description": "Per-action rate limit"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "parameters": { "type": "object" },
+              "expected_result": { "type": "object" }
+            }
+          },
+          "description": "Example invocations"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AdapterConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true,
+      "description": "Platform-specific adapter configuration"
+    },
+    "Conditions": {
+      "type": "object",
+      "properties": {
+        "risk_tiers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "description": "Applicable risk tiers"
+        },
+        "agents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Agent ID patterns (glob)"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required capabilities"
+        },
+        "context_matches": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Context key-value matches"
+        },
+        "time_window": {
+          "type": "object",
+          "properties": {
+            "start": { "type": "string", "format": "time" },
+            "end": { "type": "string", "format": "time" },
+            "timezone": { "type": "string" },
+            "days": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+              }
+            }
+          },
+          "description": "Time-based conditions"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

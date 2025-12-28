@@ -1,0 +1,27 @@
+{
+  "name": "hello-world",
+  "version": "1.0.0",
+  "description": "Hello World MCP Server",
+  "tools": [
+    {
+      "name": "greeting_send",
+      "description": "Send a greeting message",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "The greeting message"
+          },
+          "recipient": {
+            "type": "string",
+            "description": "Optional recipient"
+          }
+        },
+        "required": ["message"]
+      }
+    }
+  ],
+  "resources": [],
+  "prompts": []
+}
