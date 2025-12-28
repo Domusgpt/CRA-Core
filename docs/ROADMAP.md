@@ -42,9 +42,9 @@ Improved tooling and integrations:
 - [x] Batch operations endpoint
 - [x] OpenTelemetry export (`@cra/otel`)
 - [x] MCP server integration (`@cra/mcp`)
-- [x] 289 comprehensive tests across 11 packages
+- [x] 298 comprehensive tests across 11 packages
+- [x] Atlas scaffolding CLI (`cra atlas create`)
 - [ ] VS Code extension for Atlas development
-- [ ] Atlas scaffolding CLI (`cra atlas create`)
 - [ ] Interactive policy builder
 - [ ] Hot reload for Atlas development
 

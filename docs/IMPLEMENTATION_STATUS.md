@@ -15,7 +15,8 @@
 | **Reference Atlas** | GitHub Operations with context packs and policies |
 | **Documentation** | Architecture, specs, roadmap, testing guide |
 | **Build System** | Full npm workspace build with TypeScript |
-| **Unit Tests** | 289 tests across 11 packages |
+| **Unit Tests** | 298 tests across 11 packages |
+| **Atlas Scaffolding** | `cra atlas create` with templates (basic, api, ops) |
 | **HTTP Server** | Express-based REST API with CARP endpoints |
 | **WebSocket Streaming** | Real-time TRACE event streaming |
 | **Batch Operations** | Bulk resolve/execute endpoint |
@@ -291,13 +292,13 @@ collector.on('event', (event) => {
 | @cra/atlas | 27 | Loading and validation |
 | @cra/runtime | 22 | CARP resolution |
 | @cra/adapters | 30 | Platform translations |
-| @cra/cli | 19 | Command handling |
+| @cra/cli | 28 | Command handling, atlas scaffolding |
 | @cra/server | 17 | HTTP/WebSocket server |
 | @cra/storage | 28 | File and PostgreSQL |
 | @cra/mcp | 12 | MCP protocol |
 | @cra/otel | 27 | OpenTelemetry export |
 | @cra/ui | 24 | Dual-mode UI |
-| **Total** | **289** | **All tests passing** |
+| **Total** | **298** | **All tests passing** |
 
 ---
 
