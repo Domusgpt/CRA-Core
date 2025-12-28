@@ -558,6 +558,221 @@ POST ${req.protocol}://${req.get('host')}/v1/resolve
         });
       }
     });
+
+    // Batch operations endpoint
+    this.app.post('/v1/batch', async (req: Request, res: Response) => {
+      try {
+        const { operations } = req.body;
+
+        if (!operations || !Array.isArray(operations)) {
+          this.stats.requests_error++;
+          return res.status(400).json({
+            error: {
+              code: 'INVALID_REQUEST',
+              message: 'Missing required field: operations (array)',
+            },
+          });
+        }
+
+        if (operations.length > 100) {
+          this.stats.requests_error++;
+          return res.status(400).json({
+            error: {
+              code: 'BATCH_LIMIT_EXCEEDED',
+              message: 'Maximum 100 operations per batch',
+            },
+          });
+        }
+
+        const results: Array<{
+          operation_id: string;
+          success: boolean;
+          result?: unknown;
+          error?: { code: string; message: string };
+        }> = [];
+
+        for (const op of operations) {
+          const opId = op.id || generateId();
+
+          try {
+            if (op.type === 'resolve') {
+              const request = createRequest('resolve', {
+                agent_id: req.headers['x-agent-id'] as string || 'api-client',
+                session_id: req.headers['x-session-id'] as string || this.runtime.getSessionId(),
+              }, {
+                task: {
+                  goal: op.goal,
+                  risk_tier: op.risk_tier || 'medium',
+                  context_hints: op.context_hints,
+                },
+                scope: op.scope,
+              });
+
+              const result = await this.runtime.resolve(request);
+              results.push({
+                operation_id: opId,
+                success: !('error' in result),
+                result: 'error' in result ? undefined : result,
+                error: 'error' in result ? result.error : undefined,
+              });
+            } else if (op.type === 'execute') {
+              const actionRequest: CARPActionRequest = {
+                carp_version: CARP_VERSION,
+                request_id: generateId(),
+                timestamp: getTimestamp(),
+                operation: 'execute',
+                requester: {
+                  agent_id: req.headers['x-agent-id'] as string || 'api-client',
+                  session_id: req.headers['x-session-id'] as string || this.runtime.getSessionId(),
+                },
+                action: {
+                  action_id: op.action_id || generateId(),
+                  action_type: op.action_type,
+                  resolution_id: op.resolution_id,
+                  parameters: op.parameters || {},
+                },
+              };
+
+              const result = await this.runtime.execute(actionRequest);
+              results.push({
+                operation_id: opId,
+                success: !('error' in result),
+                result: 'error' in result ? undefined : result,
+                error: 'error' in result ? result.error : undefined,
+              });
+            } else {
+              results.push({
+                operation_id: opId,
+                success: false,
+                error: {
+                  code: 'INVALID_OPERATION',
+                  message: `Unknown operation type: ${op.type}. Valid types: resolve, execute`,
+                },
+              });
+            }
+          } catch (error) {
+            results.push({
+              operation_id: opId,
+              success: false,
+              error: {
+                code: 'OPERATION_FAILED',
+                message: String(error),
+              },
+            });
+          }
+        }
+
+        const successCount = results.filter(r => r.success).length;
+        this.stats.requests_success += successCount;
+        this.stats.requests_error += results.length - successCount;
+
+        res.json({
+          batch_id: generateId(),
+          total: results.length,
+          succeeded: successCount,
+          failed: results.length - successCount,
+          results,
+        });
+      } catch (error) {
+        this.stats.requests_error++;
+        res.status(500).json({
+          error: {
+            code: 'BATCH_ERROR',
+            message: String(error),
+          },
+        });
+      }
+    });
+
+    // Streaming resolve endpoint (SSE)
+    this.app.post('/v1/stream/resolve', async (req: Request, res: Response) => {
+      try {
+        const { goal, risk_tier, context_hints, scope } = req.body;
+
+        if (!goal) {
+          return res.status(400).json({
+            error: {
+              code: 'INVALID_REQUEST',
+              message: 'Missing required field: goal',
+            },
+          });
+        }
+
+        // Set up SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+
+        // Send initial event
+        res.write(`event: started\ndata: ${JSON.stringify({
+          stream_id: generateId(),
+          timestamp: getTimestamp(),
+        })}\n\n`);
+
+        // Create CARP request
+        const request = createRequest('resolve', {
+          agent_id: req.headers['x-agent-id'] as string || 'api-client',
+          session_id: req.headers['x-session-id'] as string || this.runtime.getSessionId(),
+        }, {
+          task: {
+            goal,
+            risk_tier: risk_tier || 'medium',
+            context_hints,
+          },
+          scope,
+        });
+
+        // Send progress event
+        res.write(`event: progress\ndata: ${JSON.stringify({
+          phase: 'resolving',
+          message: 'Processing resolution request...',
+        })}\n\n`);
+
+        // Resolve
+        const result = await this.runtime.resolve(request);
+
+        if ('error' in result) {
+          res.write(`event: error\ndata: ${JSON.stringify(result.error)}\n\n`);
+        } else {
+          // Stream context blocks first
+          if (result.context_blocks) {
+            res.write(`event: context\ndata: ${JSON.stringify({
+              phase: 'context',
+              blocks_count: result.context_blocks.length,
+              blocks: result.context_blocks,
+            })}\n\n`);
+          }
+
+          // Stream allowed actions
+          if (result.allowed_actions) {
+            res.write(`event: actions\ndata: ${JSON.stringify({
+              phase: 'actions',
+              actions_count: result.allowed_actions.length,
+              actions: result.allowed_actions,
+            })}\n\n`);
+          }
+
+          // Send complete event
+          res.write(`event: complete\ndata: ${JSON.stringify({
+            resolution_id: result.resolution_id,
+            decision: result.decision,
+            expires_at: result.ttl.resolution_expires_at,
+          })}\n\n`);
+
+          this.stats.requests_success++;
+        }
+
+        res.write(`event: done\ndata: {}\n\n`);
+        res.end();
+      } catch (error) {
+        res.write(`event: error\ndata: ${JSON.stringify({
+          code: 'STREAM_ERROR',
+          message: String(error),
+        })}\n\n`);
+        res.end();
+      }
+    });
   }
 
   /**
