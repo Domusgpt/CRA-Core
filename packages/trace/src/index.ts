@@ -17,6 +17,14 @@ export {
   type FieldRedactionRule,
 } from './redaction.js';
 
+// Golden trace testing
+export {
+  GoldenTraceManager,
+  GoldenTraceAssertion,
+  createGoldenTraceManager,
+  type GoldenTraceConfig,
+} from './golden.js';
+
 // Re-export protocol types
 export type {
   TRACEEvent,
