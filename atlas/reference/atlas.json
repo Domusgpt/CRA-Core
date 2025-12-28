@@ -1,0 +1,57 @@
+{
+  "atlas_version": "0.1",
+  "id": "cra.reference",
+  "name": "Reference CRA Atlas",
+  "version": "0.1.0",
+  "publisher": {"id": "cra", "name": "CRA Core Team"},
+  "capabilities": [
+    {"id": "cap.resolve", "tags": ["devtools", "example"], "risk_tier": "low"}
+  ],
+  "platform_adapters": ["openai.tools", "anthropic.skills", "google.adk", "mcp"],
+  "licensing": {"model": "free"},
+  "carp": {"min_version": "1.0"},
+  "trace": {"min_version": "1.0"},
+  "adapters": {
+    "openai.tools": {
+      "rate_limit": {"limit": 50, "window_seconds": 3600},
+      "actions": [
+        {
+          "name": "fetch_repo_status",
+          "schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+          "constraints": [{"type": "scope", "value": ["repo.read"]}],
+          "required_scopes": ["repo.read"],
+          "rate_limit": {"limit": 10, "window_seconds": 300}
+        }
+      ]
+    },
+    "anthropic.skills": {
+      "actions": [
+        {
+          "name": "summarize_context",
+          "schema": {"type": "object", "properties": {"content": {"type": "string"}}, "required": ["content"]}
+        }
+      ]
+    },
+    "google.adk": {
+      "actions": [
+        {
+          "name": "launch_workflow",
+          "schema": {"type": "object", "properties": {"workflow": {"type": "string"}}, "required": ["workflow"]},
+          "risk": "high",
+          "requires_approval": true,
+          "required_scopes": ["workflow.admin"],
+          "rate_limit": {"limit": 3, "window_seconds": 3600}
+        }
+      ]
+    },
+    "mcp": {
+      "actions": [
+        {
+          "name": "list_resources",
+          "schema": {"type": "object", "properties": {"resource": {"type": "string"}}, "required": ["resource"]},
+          "required_scopes": ["inventory.read"]
+        }
+      ]
+    }
+  }
+}
