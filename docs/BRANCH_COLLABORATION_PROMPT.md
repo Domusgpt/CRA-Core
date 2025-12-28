@@ -181,7 +181,10 @@ Once we agree on structure:
 # Fetch our branch
 git fetch origin claude/design-cra-architecture-WdoAv
 
-# Key files to read:
+# PRIMARY: Comprehensive infrastructure plan (READ THIS FIRST)
+git show origin/claude/design-cra-architecture-WdoAv:docs/RUST_INFRASTRUCTURE_PLAN.md
+
+# Supporting documents:
 git show origin/claude/design-cra-architecture-WdoAv:docs/RUST_CORE_PLAN.md
 git show origin/claude/design-cra-architecture-WdoAv:docs/ARCHITECTURE.md
 git show origin/claude/design-cra-architecture-WdoAv:docs/IMPLEMENTATION_STATUS.md
@@ -190,6 +193,17 @@ git show origin/claude/design-cra-architecture-WdoAv:docs/IMPLEMENTATION_STATUS.
 git show origin/claude/design-cra-architecture-WdoAv:packages/runtime/src/runtime.ts
 git show origin/claude/design-cra-architecture-WdoAv:packages/trace/src/collector.ts
 ```
+
+### Key Document: RUST_INFRASTRUCTURE_PLAN.md
+
+This is our comprehensive proposal covering:
+- **Infrastructure vision** - CRA as SQLite (embedded everywhere)
+- **Dual-mode architecture** - Resolution local, traces centralized
+- **Detailed Rust code** - Full resolve() and TraceCollector implementations
+- **Async trace buffering** - Ring buffer, background thread, non-blocking
+- **Universal bindings** - PyO3, napi-rs, WASM, C FFI
+- **Migration path** - TypeScript to Rust transition
+- **12-week timeline** - Phased implementation
 
 ---
 
