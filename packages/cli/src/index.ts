@@ -678,77 +678,488 @@ atlasCmd
   .command('create <name>')
   .description('Create a new atlas from template')
   .option('-d, --domain <domain>', 'Primary domain for the atlas')
+  .option('-t, --template <template>', 'Template type (basic, api, ops)', 'basic')
   .option('-o, --output <path>', 'Output directory', './atlases')
+  .option('--author <author>', 'Author name', 'Your Organization')
+  .option('--description <desc>', 'Atlas description')
+  .option('-y, --yes', 'Skip confirmation prompts')
   .action(async (name, options) => {
     const atlasPath = path.join(options.output, name);
+    const domain = options.domain ?? name.replace(/-/g, '.').toLowerCase();
+    const atlasId = `atlas.${name.replace(/-/g, '_').toLowerCase()}`;
 
     if (fs.existsSync(atlasPath)) {
       console.log(chalk.red(`Atlas already exists at ${atlasPath}`));
       process.exit(1);
     }
 
-    console.log(chalk.blue(`Creating atlas: ${name}...`));
+    console.log(chalk.blue(`\nCreating atlas: ${chalk.bold(name)}`));
+    console.log(chalk.gray(`  Template: ${options.template}`));
+    console.log(chalk.gray(`  Domain: ${domain}`));
+    console.log(chalk.gray(`  Output: ${atlasPath}`));
+    console.log();
 
     // Create directory structure
-    fs.mkdirSync(atlasPath, { recursive: true });
-    fs.mkdirSync(path.join(atlasPath, 'context'));
+    const dirs = [
+      atlasPath,
+      path.join(atlasPath, 'context'),
+      path.join(atlasPath, 'adapters'),
+      path.join(atlasPath, 'tests'),
+    ];
 
-    // Create manifest
-    const manifest = {
-      atlas_version: '0.1',
-      metadata: {
-        id: `atlas.${name}`,
-        version: '0.1.0',
-        description: `${name} atlas`,
-        author: 'Your Organization',
-        license: 'MIT',
-      },
-      domains: [options.domain ?? name],
-      context_packs: [
-        {
-          pack_id: 'default',
-          domain: options.domain ?? name,
-          source: 'context/default.md',
-        },
-      ],
-      actions: [],
-      policies: [
-        {
-          policy_id: 'default-allow',
-          type: 'allow',
-          conditions: { domains: [options.domain ?? name] },
-        },
-      ],
-    };
+    for (const dir of dirs) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
+    // Generate atlas.json based on template
+    const manifest = generateAtlasManifest(name, atlasId, domain, options);
     fs.writeFileSync(
-      path.join(atlasPath, 'manifest.yaml'),
-      `# ${name} Atlas Manifest\n` +
-      `# See: https://cra.dev/docs/atlas-format\n\n` +
-      JSON.stringify(manifest, null, 2).replace(/"/g, '')
-        .replace(/\{/g, '')
-        .replace(/\}/g, '')
-        .replace(/\[/g, '')
-        .replace(/\]/g, '')
-        .replace(/,$/gm, '')
+      path.join(atlasPath, 'atlas.json'),
+      JSON.stringify(manifest, null, 2)
     );
+    console.log(chalk.green(`  ✓ Created atlas.json`));
 
-    // Create default context
-    fs.writeFileSync(
-      path.join(atlasPath, 'context', 'default.md'),
-      `# ${name} Context\n\n` +
-      `This context pack provides information about ${name}.\n\n` +
-      `## Guidelines\n\n` +
-      `- Add domain-specific guidelines here\n` +
-      `- Describe best practices\n` +
-      `- Include relevant examples\n`
-    );
+    // Generate context files based on template
+    const contextFiles = generateContextFiles(name, domain, options.template);
+    for (const [filename, content] of Object.entries(contextFiles)) {
+      fs.writeFileSync(path.join(atlasPath, 'context', filename), content);
+      console.log(chalk.green(`  ✓ Created context/${filename}`));
+    }
 
-    console.log(chalk.green(`  Created ${atlasPath}/`));
-    console.log(chalk.green(`  Created ${atlasPath}/manifest.yaml`));
-    console.log(chalk.green(`  Created ${atlasPath}/context/default.md`));
-    console.log(chalk.blue('\nAtlas created! Edit manifest.yaml to configure.'));
+    // Generate adapter configs
+    const adapterFiles = generateAdapterFiles(name, domain);
+    for (const [filename, content] of Object.entries(adapterFiles)) {
+      fs.writeFileSync(path.join(atlasPath, 'adapters', filename), content);
+      console.log(chalk.green(`  ✓ Created adapters/${filename}`));
+    }
+
+    // Generate test file
+    const testContent = generateTestFile(name, atlasId);
+    fs.writeFileSync(path.join(atlasPath, 'tests', 'atlas.test.ts'), testContent);
+    console.log(chalk.green(`  ✓ Created tests/atlas.test.ts`));
+
+    // Print summary
+    console.log(chalk.blue(`\n✓ Atlas "${name}" created successfully!\n`));
+    console.log(chalk.gray('Next steps:'));
+    console.log(chalk.gray(`  1. Edit ${atlasPath}/atlas.json to customize metadata`));
+    console.log(chalk.gray(`  2. Add context in ${atlasPath}/context/`));
+    console.log(chalk.gray(`  3. Define actions and policies in atlas.json`));
+    console.log(chalk.gray(`  4. Run: cra atlas validate ${atlasPath}`));
+    console.log();
   });
+
+// Atlas template generators
+function generateAtlasManifest(
+  name: string,
+  atlasId: string,
+  domain: string,
+  options: { template: string; author: string; description?: string }
+): object {
+  const description = options.description ?? `${name} operations atlas`;
+
+  const baseManifest = {
+    atlas_version: '0.1',
+    metadata: {
+      id: atlasId,
+      name: name,
+      version: '0.1.0',
+      description,
+      authors: [{ name: options.author }],
+      license: { type: 'free', spdx: 'MIT' },
+      keywords: [domain, 'cra', 'atlas'],
+    },
+    domains: [
+      {
+        id: domain,
+        name: name.replace(/-/g, ' '),
+        description: `${name} domain`,
+        risk_tier: 'medium' as const,
+      },
+    ],
+    context_packs: [
+      {
+        id: `${domain}.overview`,
+        domain,
+        source: 'context/overview.md',
+        ttl_seconds: 3600,
+        tags: ['overview', 'getting-started'],
+      },
+    ],
+    policies: [
+      {
+        id: 'default-policy',
+        name: 'Default Policy',
+        version: '1.0.0',
+        rules: [
+          {
+            id: 'allow-low-risk',
+            description: 'Allow low-risk operations',
+            condition: { type: 'risk_tier', operator: 'in', value: ['low', 'medium'] },
+            effect: 'allow',
+            priority: 100,
+          },
+          {
+            id: 'require-approval-high-risk',
+            description: 'Require approval for high-risk operations',
+            condition: { type: 'risk_tier', operator: 'in', value: ['high', 'critical'] },
+            effect: 'require_approval',
+            priority: 50,
+          },
+        ],
+      },
+    ],
+    actions: [] as object[],
+    adapters: [
+      { platform: 'openai', config_file: 'adapters/openai.json' },
+      { platform: 'claude', config_file: 'adapters/claude.json' },
+    ],
+    tests: [
+      { id: 'conformance', name: 'Conformance Tests', type: 'conformance', test_files: ['tests/atlas.test.ts'] },
+    ],
+  };
+
+  // Add template-specific actions
+  if (options.template === 'api') {
+    baseManifest.actions = [
+      {
+        id: `${domain}.get`,
+        type: 'api.get',
+        name: 'GET Request',
+        description: `Make a GET request to ${name} API`,
+        domain,
+        risk_tier: 'low',
+        schema: {
+          type: 'object',
+          properties: {
+            endpoint: { type: 'string', description: 'API endpoint path' },
+            params: { type: 'object', description: 'Query parameters' },
+          },
+          required: ['endpoint'],
+        },
+      },
+      {
+        id: `${domain}.post`,
+        type: 'api.post',
+        name: 'POST Request',
+        description: `Make a POST request to ${name} API`,
+        domain,
+        risk_tier: 'medium',
+        schema: {
+          type: 'object',
+          properties: {
+            endpoint: { type: 'string', description: 'API endpoint path' },
+            body: { type: 'object', description: 'Request body' },
+          },
+          required: ['endpoint', 'body'],
+        },
+      },
+      {
+        id: `${domain}.delete`,
+        type: 'api.delete',
+        name: 'DELETE Request',
+        description: `Make a DELETE request to ${name} API`,
+        domain,
+        risk_tier: 'high',
+        schema: {
+          type: 'object',
+          properties: {
+            endpoint: { type: 'string', description: 'API endpoint path' },
+            id: { type: 'string', description: 'Resource ID to delete' },
+          },
+          required: ['endpoint', 'id'],
+        },
+      },
+    ];
+  } else if (options.template === 'ops') {
+    baseManifest.actions = [
+      {
+        id: `${domain}.list`,
+        type: 'ops.list',
+        name: 'List Resources',
+        description: `List ${name} resources`,
+        domain,
+        risk_tier: 'low',
+        schema: {
+          type: 'object',
+          properties: {
+            filter: { type: 'string', description: 'Filter expression' },
+            limit: { type: 'number', description: 'Maximum results' },
+          },
+        },
+      },
+      {
+        id: `${domain}.create`,
+        type: 'ops.create',
+        name: 'Create Resource',
+        description: `Create a new ${name} resource`,
+        domain,
+        risk_tier: 'medium',
+        schema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Resource name' },
+            config: { type: 'object', description: 'Resource configuration' },
+          },
+          required: ['name'],
+        },
+      },
+      {
+        id: `${domain}.update`,
+        type: 'ops.update',
+        name: 'Update Resource',
+        description: `Update an existing ${name} resource`,
+        domain,
+        risk_tier: 'medium',
+        schema: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Resource ID' },
+            updates: { type: 'object', description: 'Fields to update' },
+          },
+          required: ['id', 'updates'],
+        },
+      },
+      {
+        id: `${domain}.delete`,
+        type: 'ops.delete',
+        name: 'Delete Resource',
+        description: `Delete a ${name} resource`,
+        domain,
+        risk_tier: 'high',
+        schema: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Resource ID to delete' },
+            force: { type: 'boolean', description: 'Force deletion' },
+          },
+          required: ['id'],
+        },
+      },
+    ];
+  }
+
+  return baseManifest;
+}
+
+function generateContextFiles(name: string, domain: string, template: string): Record<string, string> {
+  const files: Record<string, string> = {};
+
+  // Overview context
+  files['overview.md'] = `# ${name} Overview
+
+This context pack provides guidelines for working with ${name}.
+
+## Domain: ${domain}
+
+### Capabilities
+
+- List resources and their current state
+- Create new resources with proper configuration
+- Update existing resources safely
+- Delete resources with appropriate safeguards
+
+### Best Practices
+
+1. **Always verify before destructive operations**
+   - Check resource dependencies before deletion
+   - Use \`force\` flag only when necessary
+
+2. **Use appropriate risk tiers**
+   - Read operations: low risk
+   - Create/update operations: medium risk
+   - Delete operations: high risk
+
+3. **Include proper context**
+   - Provide clear descriptions for operations
+   - Include relevant identifiers and metadata
+
+## Common Patterns
+
+### Listing Resources
+
+\`\`\`
+Goal: "List all ${domain} resources"
+Risk tier: low
+Actions: ${domain}.list
+\`\`\`
+
+### Creating Resources
+
+\`\`\`
+Goal: "Create a new ${domain} resource"
+Risk tier: medium
+Actions: ${domain}.create
+\`\`\`
+
+## Error Handling
+
+- Check for existence before operations
+- Handle rate limiting gracefully
+- Provide clear error messages
+
+## Security Considerations
+
+- Validate all inputs
+- Use least-privilege access
+- Audit high-risk operations
+`;
+
+  // Add template-specific context files
+  if (template === 'api') {
+    files['api-reference.md'] = `# ${name} API Reference
+
+## Authentication
+
+All API requests require authentication via API key or OAuth token.
+
+## Endpoints
+
+### GET Requests
+
+Low-risk operations for reading data.
+
+### POST Requests
+
+Medium-risk operations for creating resources.
+
+### DELETE Requests
+
+High-risk operations requiring approval for production resources.
+
+## Rate Limits
+
+- Standard: 100 requests/minute
+- Burst: 200 requests/minute
+
+## Error Codes
+
+| Code | Description |
+|------|-------------|
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 403 | Forbidden |
+| 404 | Not Found |
+| 429 | Rate Limited |
+| 500 | Internal Error |
+`;
+  } else if (template === 'ops') {
+    files['operations-guide.md'] = `# ${name} Operations Guide
+
+## Resource Lifecycle
+
+1. **Create**: Initialize new resources
+2. **Update**: Modify existing resources
+3. **Delete**: Remove resources safely
+
+## Operational Patterns
+
+### Batch Operations
+
+For bulk operations, process in batches of 10-50 items.
+
+### Rollback Procedures
+
+1. Document current state before changes
+2. Keep deletion audit logs
+3. Implement undo where possible
+
+## Monitoring
+
+- Track resource creation/deletion rates
+- Alert on unusual patterns
+- Log all high-risk operations
+
+## Compliance
+
+- Maintain audit trail
+- Enforce naming conventions
+- Apply proper tags/labels
+`;
+  }
+
+  return files;
+}
+
+function generateAdapterFiles(name: string, domain: string): Record<string, string> {
+  const files: Record<string, string> = {};
+
+  files['openai.json'] = JSON.stringify({
+    platform: 'openai',
+    tool_prefix: domain.replace(/\./g, '_'),
+    tool_mappings: [
+      {
+        action_id: `${domain}.list`,
+        tool_name: `${domain.replace(/\./g, '_')}_list`,
+      },
+    ],
+    system_prompt_additions: [
+      `You have access to ${name} operations.`,
+      `Use the ${domain} tools to interact with resources.`,
+    ],
+  }, null, 2);
+
+  files['claude.json'] = JSON.stringify({
+    platform: 'claude',
+    tool_prefix: domain.replace(/\./g, '_'),
+    tool_mappings: [
+      {
+        action_id: `${domain}.list`,
+        tool_name: `${domain.replace(/\./g, '_')}_list`,
+      },
+    ],
+    system_prompt_additions: [
+      `You have access to ${name} operations.`,
+      `Use the ${domain} tools to interact with resources.`,
+    ],
+  }, null, 2);
+
+  return files;
+}
+
+function generateTestFile(name: string, atlasId: string): string {
+  return `/**
+ * ${name} Atlas Conformance Tests
+ */
+
+import { describe, it, expect } from 'vitest';
+import { AtlasLoader } from '@cra/atlas';
+import * as path from 'path';
+
+describe('${name} Atlas', () => {
+  const atlasPath = path.join(__dirname, '..');
+  let loader: AtlasLoader;
+
+  beforeAll(() => {
+    loader = new AtlasLoader({ validate: true });
+  });
+
+  it('should load successfully', async () => {
+    const atlas = await loader.load(atlasPath);
+    expect(atlas.manifest.metadata.id).toBe('${atlasId}');
+  });
+
+  it('should have valid domains', async () => {
+    const atlas = await loader.load(atlasPath);
+    expect(atlas.manifest.domains.length).toBeGreaterThan(0);
+  });
+
+  it('should have valid context packs', async () => {
+    const atlas = await loader.load(atlasPath);
+    expect(atlas.manifest.context_packs.length).toBeGreaterThan(0);
+  });
+
+  it('should have valid policies', async () => {
+    const atlas = await loader.load(atlasPath);
+    expect(atlas.manifest.policies.length).toBeGreaterThan(0);
+  });
+
+  it('should validate against schema', async () => {
+    const result = await loader.validate(atlasPath);
+    expect(result.valid).toBe(true);
+  });
+});
+`;
+}
 
 // =============================================================================
 // Run CLI

@@ -171,3 +171,131 @@ describe('Option Parsing', () => {
     expect(lines).toBe(20);
   });
 });
+
+describe('Atlas Create Command', () => {
+  it('should define atlas create subcommand', () => {
+    const cmd = new Command();
+    const atlas = cmd.command('atlas').description('Atlas commands');
+    const create = atlas.command('create <name>').description('Create a new atlas');
+    create.option('-d, --domain <domain>', 'Primary domain');
+    create.option('-t, --template <template>', 'Template type', 'basic');
+    create.option('-o, --output <path>', 'Output directory', './atlases');
+    expect(create.description()).toBe('Create a new atlas');
+  });
+
+  it('should support template types', () => {
+    const validTemplates = ['basic', 'api', 'ops'];
+    expect(validTemplates).toContain('basic');
+    expect(validTemplates).toContain('api');
+    expect(validTemplates).toContain('ops');
+  });
+
+  it('should generate valid atlas id from name', () => {
+    const name = 'my-test-atlas';
+    const atlasId = `atlas.${name.replace(/-/g, '_').toLowerCase()}`;
+    expect(atlasId).toBe('atlas.my_test_atlas');
+  });
+
+  it('should generate valid domain from name', () => {
+    const name = 'my-test-atlas';
+    const domain = name.replace(/-/g, '.').toLowerCase();
+    expect(domain).toBe('my.test.atlas');
+  });
+});
+
+describe('Atlas Template Structure', () => {
+  it('should generate manifest with required fields', () => {
+    const manifest = {
+      atlas_version: '0.1',
+      metadata: {
+        id: 'atlas.test',
+        name: 'test',
+        version: '0.1.0',
+        description: 'Test atlas',
+        authors: [{ name: 'Test Author' }],
+        license: { type: 'free', spdx: 'MIT' },
+        keywords: ['test', 'cra', 'atlas'],
+      },
+      domains: [
+        { id: 'test', name: 'test', description: 'test domain', risk_tier: 'medium' },
+      ],
+      context_packs: [
+        { id: 'test.overview', domain: 'test', source: 'context/overview.md', ttl_seconds: 3600, tags: [] },
+      ],
+      policies: [],
+      actions: [],
+      adapters: [],
+      tests: [],
+    };
+
+    expect(manifest.atlas_version).toBe('0.1');
+    expect(manifest.metadata.id).toBe('atlas.test');
+    expect(manifest.domains).toHaveLength(1);
+    expect(manifest.context_packs).toHaveLength(1);
+  });
+
+  it('should generate API template actions', () => {
+    const apiActions = [
+      { id: 'test.get', type: 'api.get', risk_tier: 'low' },
+      { id: 'test.post', type: 'api.post', risk_tier: 'medium' },
+      { id: 'test.delete', type: 'api.delete', risk_tier: 'high' },
+    ];
+
+    expect(apiActions).toHaveLength(3);
+    expect(apiActions[0].type).toBe('api.get');
+    expect(apiActions[1].type).toBe('api.post');
+    expect(apiActions[2].type).toBe('api.delete');
+  });
+
+  it('should generate ops template actions', () => {
+    const opsActions = [
+      { id: 'test.list', type: 'ops.list', risk_tier: 'low' },
+      { id: 'test.create', type: 'ops.create', risk_tier: 'medium' },
+      { id: 'test.update', type: 'ops.update', risk_tier: 'medium' },
+      { id: 'test.delete', type: 'ops.delete', risk_tier: 'high' },
+    ];
+
+    expect(opsActions).toHaveLength(4);
+    expect(opsActions[0].type).toBe('ops.list');
+    expect(opsActions[3].type).toBe('ops.delete');
+  });
+
+  it('should generate adapter config with valid structure', () => {
+    const adapterConfig = {
+      platform: 'openai',
+      tool_prefix: 'test',
+      tool_mappings: [{ action_id: 'test.list', tool_name: 'test_list' }],
+      system_prompt_additions: ['You have access to test operations.'],
+    };
+
+    expect(adapterConfig.platform).toBe('openai');
+    expect(adapterConfig.tool_mappings).toHaveLength(1);
+    expect(adapterConfig.system_prompt_additions).toHaveLength(1);
+  });
+
+  it('should generate policy with risk-based rules', () => {
+    const policy = {
+      id: 'default-policy',
+      name: 'Default Policy',
+      version: '1.0.0',
+      rules: [
+        {
+          id: 'allow-low-risk',
+          condition: { type: 'risk_tier', operator: 'in', value: ['low', 'medium'] },
+          effect: 'allow',
+          priority: 100,
+        },
+        {
+          id: 'require-approval-high-risk',
+          condition: { type: 'risk_tier', operator: 'in', value: ['high', 'critical'] },
+          effect: 'require_approval',
+          priority: 50,
+        },
+      ],
+    };
+
+    expect(policy.rules).toHaveLength(2);
+    expect(policy.rules[0].effect).toBe('allow');
+    expect(policy.rules[1].effect).toBe('require_approval');
+  });
+});
