@@ -1,320 +1,53 @@
 # CRA-Core
-Contest registry agent CARP/TRACE
-# CRA Spec Pack v0.1
 
-> This document contains the **complete, clean, copy‑safe versions** of all CRA specifications and onboarding files. You can **Save As → Markdown**, split into files, or paste into your repo exactly as‑is. No broken formatting. No hidden blocks. No missing sections.
-
----
-
-## TABLE OF CONTENTS
-
-1. ONE\_PAGER.md
-2. EXECUTIVE\_BRIEF.md
-3. CARP\_1\_0.md
-4. TRACE\_1\_0.md
-5. RUNTIME\_API\_v0\_1.md
-6. ATLAS\_FORMAT\_v0\_1.md
-7. CLI\_TELEMETRY\_REQUIREMENTS\_v0\_1.md
-8. templates/agents.md
-9. templates/CRA\_STARTER\_PROMPT.md
-
----
-
-# ==========================
-
-# 1. ONE\_PAGER.md
-
-# ==========================
-
-# CRA — Context Registry Agents
-
-**What**\
-A governed context layer that makes AI agents use tools, systems, and proprietary knowledge *correctly*.
-
-**How**\
-CARP resolves context + permitted actions. TRACE proves what happened.
-
-**Why**\
-LLMs hallucinate. Enterprises need auditability. Creators need a way to publish operational knowledge.
-
----
-
-## Core Components
-
-- **CRA Runtime** – authoritative resolver + policy engine
-- **CARP** – Context & Action Resolution Protocol (meaning)
-- **TRACE** – Telemetry & Replay Contract (truth)
-- **Atlases** – creator‑published context packages
-- **CLI** – asynchronous, telemetry‑first UX
-
----
-
-## What Makes This Unique
-
-1. Context is treated as a **licensed, governed artifact**
-2. Runtime is authoritative — LLM narration is non‑authoritative
-3. Telemetry is replayable, diffable, and audit‑grade
-4. One Atlas works across Claude, OpenAI, Google ADK, MCP
-
----
-
-## Business Model
-
-Creators publish Atlases:
-
-- free, paid, subscription, usage‑metered
-- platform takes a revenue cut
-- certification for CARP/TRACE compliance
-
----
-
-## One‑Line Positioning
-
-**“The context authority layer that makes agents reliable, governable, and provable.”**
-
----
-
-# ==========================
-
-# 2. EXECUTIVE\_BRIEF.md
-
-# ==========================
-
-# CRA Platform — Executive Brief
-
-## Problem
-
-LLMs routinely:
-
-- misuse proprietary tools
-- invent APIs and workflows
-- provide no proof of execution
-
-This breaks trust, compliance, and scale.
-
----
-
-## Solution
-
-**Context Registry Agents (CRAs)** act as *authoritative intermediaries* between LLMs and real systems.
-
-They:
-
-- curate minimal, correct context
-- enforce governance and permissions
-- emit runtime‑truth telemetry
-
----
-
-## Two Core Protocols
-
-### CARP — Context & Action Resolution Protocol
-
-A strict contract that decides:
-
-- what context may be injected
-- what actions are allowed
-- under what constraints
-- with what evidence
-
-### TRACE — Telemetry & Replay Contract
-
-A runtime‑emitted flight recorder:
-
-- deterministic replay
-- regression testing
-- compliance audits
-
----
-
-## Market Impact
-
-- Enterprises: safe agentic automation
-- Developers: correct tool usage
-- Creators: monetize operational expertise
-
----
-
-# ==========================
-
-# 3. CARP\_1\_0.md
-
-# ==========================
-
-# CARP/1.0 — Context & Action Resolution Protocol
-
-## Purpose
-
-CARP defines a deterministic contract between:
-
-- an **acting agent**, and
-- a **context authority (CRA)**
-
-CARP answers *what context is allowed* and *what actions may occur*.
-
----
-
-## Core Guarantees
-
-- Runtime authority (not the model)
-- Least‑privilege context
-- Explicit permissions
-- Evidence‑backed decisions
-
----
-
-## CARP Request (Example)
-
-```json
-{
-  "carp_version": "1.0",
-  "operation": "resolve",
-  "task": {
-    "goal": "Deploy internal service",
-    "risk_tier": "high"
-  }
-}
-```
-
----
-
-## CARP Resolution (Example)
-
-```json
-{
-  "resolution": {
-    "decision": "allow_with_constraints",
-    "context_blocks": ["deployment_rules"],
-    "allowed_actions": ["ci.deploy"],
-    "requires_approval": true
-  }
-}
-```
-
----
-
-# ==========================
-
-# 4. TRACE\_1\_0.md
-
-# ==========================
-
-# TRACE/1.0 — Telemetry & Replay Contract
-
-## Principle
-
-> If it wasn’t emitted by the runtime, it didn’t happen.
-
----
-
-## What TRACE Is
-
-- append‑only event stream
-- emitted by CRA runtime
-- supports replay and diff
-
----
-
-## TRACE Event (Example)
-
-```json
-{
-  "trace_version": "1.0",
-  "event_type": "carp.resolve",
-  "timestamp": "2025‑01‑01T12:00:00Z"
-}
-```
-
----
-
-# ==========================
-
-# 5. RUNTIME\_API\_v0\_1.md
-
-# ==========================
-
-# CRA Runtime API v0.1
-
-## Key Endpoints
-
-- POST /carp/resolve
-- POST /carp/execute
-- GET  /trace/stream
-- GET  /trace/replay
-
----
-
-## Runtime Rules
-
-- All tool calls go through runtime
-- All telemetry is runtime‑emitted
-- CLI is the primary interface
-
----
-
-# ==========================
-
-# 6. ATLAS\_FORMAT\_v0\_1.md
-
-# ==========================
-
-# CRA Atlas Format
-
-Atlases are creator‑published packages that include:
-
-- atlas.json (manifest)
-- context packs
-- policies
-- adapters (Claude/OpenAI/MCP)
-- tests
-
----
-
-# ==========================
-
-# 7. CLI\_TELEMETRY\_REQUIREMENTS\_v0\_1.md
-
-# ==========================
-
-# CLI Telemetry Requirements
-
-- asynchronous by default
-- continuous TRACE output
-- JSON‑first, human‑friendly second
-
----
-
-# ==========================
-
-# 8. templates/agents.md
-
-# ==========================
-
-# agents.md — CRA Contract
-
-## Rules
-
-- Always resolve via CARP
-- Never guess tool usage
-- TRACE is authoritative
-
----
-
-# ==========================
-
-# 9. templates/CRA\_STARTER\_PROMPT.md
-
-# ==========================
-
-# CRA Starter Prompt
-
-You operate under CRA governance.
-
-Rules:
-
-- Ask CARP before acting
-- Use only allowed actions
-- Rely on TRACE, not narration
-
----
-
+Context Registry Agents (CRA) provide an authority layer that resolves governed context and permitted actions for agentic systems. This repository includes protocol drafts for CARP and TRACE, an in-memory reference runtime, a telemetry-first CLI, and a reference Atlas.
+
+## Contents
+- `docs/` — CARP/TRACE specs, runtime and CLI requirements, architecture plan, roadmap
+- `src/cra/` — runtime, models, telemetry, and CLI
+- `atlas/reference/` — minimal Atlas demonstrating context blocks and adapter metadata
+- `templates/` — starter agent contract and CRA prompt
+- `config/`, `lock/`, `traces/` — created/maintained by the CLI
+
+## Quickstart
+1. Install dependencies (and the CLI entry point)
+   ```bash
+   pip install -r requirements.txt
+   pip install -e .
+   ```
+2. Initialize a project (creates `agents.md`, `config/`, `lock/`, `traces/`)
+   ```bash
+   python -m cra.cli init
+   ```
+3. Resolve a goal against the reference Atlas and stream TRACE
+   ```bash
+   python -m cra.cli resolve "Summarize CRA architecture" --atlas atlas/reference --refresh-context
+   python -m cra.cli tail --trace latest
+   ```
+4. Inspect or refresh context TTL state explicitly (optional)
+   ```bash
+   python -m cra.cli context-status
+   python -m cra.cli context-refresh  # clears registry to force reissuance on next resolve
+   ```
+5. Register an identity token (optional but required when token enforcement is enabled) and invoke an allowed adapter action with telemetry, approvals, rate limits, and scope checks
+   ```bash
+   python -m cra.cli identity-register demo-token cli-user --scopes repo.read,inventory.read
+   python -m cra.cli invoke-action openai.tools.fetch_repo_status --payload '{"path":"."}' --approve --token demo-token
+   ```
+
+6. Export and replay TRACE for golden-trace regression checks
+   ```bash
+   python -m cra.cli list-traces
+   python -m cra.cli export-trace --trace-id latest --output traces/export/trace-manifest.json
+   python -m cra.cli replay traces/$(cat traces/latest).jsonl
+   ```
+
+## Protocols
+- CARP/1.0 — Context & Action Resolution Protocol (`docs/CARP_1_0.md`)
+- TRACE/1.0 — Telemetry & Replay Artifact Contract (`docs/TRACE_1_0.md`)
+
+## Governance
+- Context blocks are TTL-bounded, persisted in `lock/context_registry.json`, and redacted once expired; TRACE emits `trace.artifact.created|updated|redacted` with TTL metadata and supports operator-driven refresh via CLI
+- Actions are constrained by adapters, scopes, approvals, rate limits (with window hints), Atlas licensing hooks, and optional token-gated identities with scope validation
+- TRACE events are append-only; if telemetry does not show it, it did not happen
+- Governance telemetry includes policy denials, pending approvals, and rate-limit events alongside granted/invoked/completed/failure events
