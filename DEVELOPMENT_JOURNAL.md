@@ -1257,4 +1257,164 @@ The CRA Rust implementation now supports both modes:
 
 ---
 
+## 17. Timing & Heartbeat System (2025-12-28)
+
+### Motivation
+
+Even single agents can benefit from timer-based features:
+- **Heartbeat telemetry** for health monitoring
+- **Session TTL** for automatic cleanup
+- **Sliding window rate limits** (not just counters)
+- **Trace batching** for efficient writes
+
+### Integration with minoots-timer-system
+
+The minoots timer system (github.com/Domusgpt/minoots-timer-system) provides:
+- **Horology Kernel**: Rust/Tokio scheduler
+- **Event streaming**: Real-time timer events
+- **Action orchestration**: Execute on timer fire
+
+CRA's new `timing` module provides traits that can wrap minoots:
+
+```rust
+pub trait TimerBackend: Send + Sync {
+    fn schedule_once(&self, id: &str, delay: Duration, event: TimerEvent) -> Result<()>;
+    fn schedule_repeating(&self, id: &str, interval: Duration, event: TimerEvent) -> Result<()>;
+    fn cancel(&self, id: &str) -> Result<bool>;
+    fn time_remaining(&self, id: &str) -> Option<Duration>;
+}
+```
+
+### Key Components
+
+1. **HeartbeatConfig** - Tunable heartbeat with metrics:
+   ```rust
+   HeartbeatConfig::new()
+       .interval(Duration::from_secs(30))
+       .include_metrics(true)
+       .include_sessions(true)
+   ```
+
+2. **SessionTTLConfig** - Idle timeout + max lifetime:
+   ```rust
+   SessionTTLConfig::new()
+       .idle_timeout(Duration::from_secs(3600))
+       .max_lifetime(Duration::from_secs(86400))
+       .warn_before(Duration::from_secs(300))
+   ```
+
+3. **SlidingWindowRateLimiter** - Proper time-based rate limiting:
+   ```rust
+   let limiter = SlidingWindowRateLimiter::new(
+       Duration::from_secs(60),  // 1 minute window
+       100,                       // max 100 requests
+   );
+
+   match limiter.check_and_record("policy-1", "action-1") {
+       RateLimitResult::Allowed { remaining, .. } => { /* proceed */ }
+       RateLimitResult::Exceeded { reset_after, .. } => { /* wait */ }
+   }
+   ```
+
+4. **TraceBatcher** - Periodic flush for efficiency:
+   ```rust
+   let batcher = TraceBatcher::new(100)  // flush every 100 events
+       .with_flush_callback(|events| {
+           storage.store_batch(events)
+       });
+   ```
+
+5. **HeartbeatMetrics** - Collected at each heartbeat:
+   ```rust
+   HeartbeatMetrics {
+       uptime_seconds: 3600,
+       total_resolutions: 1000,
+       resolutions_last_interval: 50,
+       active_sessions: 5,
+       pending_traces: 20,
+       memory_bytes: Some(1024 * 1024),
+   }
+   ```
+
+### TimerEvent Types
+
+```rust
+pub enum TimerEvent {
+    Heartbeat { session_id: String },
+    SessionIdle { session_id: String },
+    SessionExpired { session_id: String },
+    ResolutionExpired { resolution_id: String },
+    RateLimitReset { policy_id: String, action_id: String },
+    TraceBatchFlush,
+    Custom { name: String, data: Value },
+}
+```
+
+### Architecture
+
+```
+                    ┌─────────────────────────────────┐
+                    │      minoots Horology Kernel    │
+                    │      (or tokio::time)           │
+                    └───────────────┬─────────────────┘
+                                    │ timer events
+                                    ▼
+┌───────────────────────────────────────────────────────────────┐
+│                     CRA Timing Module                          │
+│  ┌──────────────┐ ┌──────────────┐ ┌───────────────────────┐  │
+│  │ Heartbeat    │ │ Session TTL  │ │ Sliding Rate Limiter  │  │
+│  │ Generator    │ │ Manager      │ │ (time-windowed)       │  │
+│  └──────┬───────┘ └──────┬───────┘ └───────────┬───────────┘  │
+│         │                │                     │              │
+│         ▼                ▼                     ▼              │
+│  ┌──────────────────────────────────────────────────────────┐ │
+│  │                    TraceBatcher                          │ │
+│  │            (accumulate → periodic flush)                 │ │
+│  └──────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+                          TRACE Events / Storage
+```
+
+### Test Results
+
+```
+test timing::tests::test_sliding_window_rate_limiter ... ok
+test timing::tests::test_trace_batcher ... ok
+test timing::tests::test_heartbeat_config_builder ... ok
+test timing::tests::test_session_ttl_config_builder ... ok
+```
+
+**Total: 90 tests passing** (80 unit + 7 conformance + 3 doc tests)
+
+### Future: Direct minoots Integration
+
+When using minoots as the timer backend:
+
+```rust
+use cra_core::timing::TimerBackend;
+use minoots_kernel::HorologyKernel;
+
+struct MinootsTimerBackend {
+    kernel: HorologyKernel,
+}
+
+impl TimerBackend for MinootsTimerBackend {
+    fn schedule_once(&self, id: &str, delay: Duration, event: TimerEvent) -> Result<()> {
+        self.kernel.create_timer(id, delay, move || {
+            // Handle CRA timer event
+        })
+    }
+    // ...
+}
+```
+
+This enables:
+- Distributed timers across swarm nodes
+- Persistent timers that survive restarts
+- Cloud-synced heartbeats via Firebase
+
+---
+
 *Journal continues as development progresses...*

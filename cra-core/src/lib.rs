@@ -64,6 +64,7 @@ pub mod trace;
 pub mod atlas;
 pub mod error;
 pub mod storage;
+pub mod timing;
 
 #[cfg(feature = "ffi")]
 pub mod ffi;
@@ -85,6 +86,12 @@ pub use atlas::{
 };
 pub use error::{CRAError, Result, ErrorCategory, ErrorResponse, ErrorDetail};
 pub use storage::{StorageBackend, InMemoryStorage, FileStorage, NullStorage};
+pub use timing::{
+    TimerEvent, TimerCallback, TimerBackend,
+    HeartbeatConfig, SessionTTLConfig,
+    SlidingWindowRateLimiter, RateLimitResult,
+    TraceBatcher, HeartbeatMetrics,
+};
 
 /// Protocol version constants
 pub const CARP_VERSION: &str = "1.0";
