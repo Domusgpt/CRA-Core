@@ -7,6 +7,16 @@
 export { TRACECollector, loadTraceFile, replayTrace } from './collector.js';
 export type { CollectorOptions, SpanContext } from './collector.js';
 
+// Redaction engine
+export {
+  RedactionEngine,
+  createRedactionEngine,
+  redact,
+  type RedactionConfig,
+  type RedactionPattern,
+  type FieldRedactionRule,
+} from './redaction.js';
+
 // Re-export protocol types
 export type {
   TRACEEvent,
