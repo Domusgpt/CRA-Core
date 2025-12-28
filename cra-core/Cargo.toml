@@ -14,6 +14,7 @@ default = ["ffi"]
 ffi = []
 conformance = []
 async-runtime = ["tokio", "async-trait", "parking_lot", "num_cpus"]
+minoots = []  # Enable minoots timer backend integration
 
 [dependencies]
 serde.workspace = true
@@ -27,6 +28,7 @@ regex.workspace = true
 glob.workspace = true
 jsonschema.workspace = true
 libc.workspace = true
+crossbeam.workspace = true
 
 # Async runtime (optional)
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros"], optional = true }

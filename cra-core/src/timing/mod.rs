@@ -11,33 +11,56 @@
 //! - **Rate limit windows**: Sliding window counters with proper time tracking
 //! - **Trace batching**: Periodic flush of accumulated events
 //!
+//! ## Architecture
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────────────────────────┐
+//! │                         TimerManager                                │
+//! │  • Coordinates all timing needs                                     │
+//! │  • Tracks sessions for TTL                                          │
+//! │  • Schedules heartbeats and flushes                                │
+//! └────────────────────────────────┬────────────────────────────────────┘
+//!                                  │
+//!                                  ▼
+//! ┌─────────────────────────────────────────────────────────────────────┐
+//! │                       TimerBackend (trait)                          │
+//! ├─────────────────┬─────────────────┬─────────────────────────────────┤
+//! │ MockBackend     │ StdBackend      │ MinootsBackend (optional)       │
+//! │ (testing)       │ (std::thread)   │ (Horology Kernel)               │
+//! └─────────────────┴─────────────────┴─────────────────────────────────┘
+//! ```
+//!
 //! ## Integration with minoots-timer-system
 //!
 //! This module provides traits that can be implemented using:
-//! - minoots Horology Kernel (Rust/Tokio)
+//! - minoots Horology Kernel (Rust/Tokio) - enable `minoots` feature
 //! - Native tokio timers (when async-runtime feature enabled)
-//! - External webhook-based timers
+//! - std::thread timers (for simple sync usage)
 //!
 //! ## Example
 //!
 //! ```rust,ignore
-//! use cra_core::timing::{TimerBackend, HeartbeatConfig, SessionTTLConfig};
+//! use cra_core::timing::{TimerManager, HeartbeatConfig, SessionTTLConfig};
+//! use cra_core::timing::backends::MockTimerBackend;
 //!
-//! // Configure heartbeat
-//! let heartbeat = HeartbeatConfig::new()
-//!     .interval(Duration::from_secs(30))
-//!     .include_metrics(true);
+//! // Create timer manager with mock backend
+//! let backend = MockTimerBackend::new();
+//! let manager = TimerManager::new(backend)
+//!     .with_heartbeat(HeartbeatConfig::new().interval(Duration::from_secs(30)))
+//!     .with_session_ttl(SessionTTLConfig::new().idle_timeout(Duration::from_secs(3600)));
 //!
-//! // Configure session TTL
-//! let ttl = SessionTTLConfig::new()
-//!     .idle_timeout(Duration::from_secs(3600))
-//!     .max_lifetime(Duration::from_secs(86400));
+//! // Start the timer manager
+//! manager.start().unwrap();
 //!
-//! // Create timed resolver
-//! let resolver = TimedResolver::new(resolver)
-//!     .with_heartbeat(heartbeat)
-//!     .with_session_ttl(ttl);
+//! // Track sessions
+//! manager.track_session("session-1").unwrap();
+//!
+//! // Record activity (resets idle timer)
+//! manager.touch_session("session-1").unwrap();
 //! ```
+
+pub mod backends;
+pub mod manager;
 
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
@@ -45,6 +68,12 @@ use std::sync::{Arc, RwLock};
 
 use crate::error::Result;
 use crate::trace::TRACEEvent;
+
+// Re-export backends
+pub use backends::{MockTimerBackend, StdTimerBackend};
+
+// Re-export manager
+pub use manager::{TimerManager, TimerHandler, NullTimerHandler};
 
 /// Timer event types that CRA cares about
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -393,8 +422,11 @@ pub struct HeartbeatMetrics {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+
+    // Re-export MockTimerBackend for other test modules
+    pub use super::backends::MockTimerBackend;
 
     #[test]
     fn test_sliding_window_rate_limiter() {

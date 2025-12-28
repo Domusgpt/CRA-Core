@@ -13,16 +13,36 @@
 //! - **Tamper-Evident**: Any modification breaks chain verification
 //! - **Replayable**: Given TRACE + Atlas, can reproduce exact behavior
 //! - **Diffable**: Compare traces to detect behavioral changes
+//!
+//! ## Architecture
+//!
+//! The trace system uses a lock-free ring buffer for high-throughput collection:
+//!
+//! ```text
+//! Hot Path (sync)        Background Worker
+//! ────────────────       ─────────────────
+//! emit() ──────────────► RingBuffer ──────► TraceProcessor
+//!   │                      (lock-free)         │
+//!   └─ Returns immediately                     └─ Computes hashes
+//!      No blocking                                Chains events
+//!                                                 Stores to backend
+//! ```
 
 mod event;
 mod collector;
 mod chain;
 mod replay;
+mod raw;
+mod buffer;
+mod processor;
 
 pub use event::{TRACEEvent, EventType, EventPayload};
 pub use collector::TraceCollector;
 pub use chain::{ChainVerification, ChainVerifier};
 pub use replay::{ReplayEngine, ReplayResult, ReplayDiff};
+pub use raw::RawEvent;
+pub use buffer::{TraceRingBuffer, BufferStats};
+pub use processor::{TraceProcessor, ProcessorConfig, ProcessorHandle};
 
 /// TRACE protocol version
 pub const VERSION: &str = "1.0";

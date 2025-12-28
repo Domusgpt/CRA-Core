@@ -28,6 +28,9 @@ regex = "1.10"
 glob = "0.3"
 jsonschema = "0.18"
 
+# Lock-free data structures
+crossbeam = "0.8"
+
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
 

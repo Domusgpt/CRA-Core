@@ -79,6 +79,7 @@ pub use carp::{
 };
 pub use trace::{
     TRACEEvent, EventType, TraceCollector, ChainVerification, ReplayResult,
+    RawEvent, TraceRingBuffer, BufferStats, TraceProcessor, ProcessorConfig, ProcessorHandle,
 };
 pub use atlas::{
     AtlasManifest, AtlasAction, AtlasPolicy, AtlasCapability, PolicyType,
@@ -91,6 +92,8 @@ pub use timing::{
     HeartbeatConfig, SessionTTLConfig,
     SlidingWindowRateLimiter, RateLimitResult,
     TraceBatcher, HeartbeatMetrics,
+    TimerManager, TimerHandler, NullTimerHandler,
+    MockTimerBackend, StdTimerBackend,
 };
 
 /// Protocol version constants
