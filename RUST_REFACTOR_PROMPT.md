@@ -9,9 +9,10 @@
 5. [Platform Vision](#5-platform-vision)
 6. [Current Implementation Status](#6-current-implementation-status)
 7. [Future Roadmap](#7-future-roadmap)
-8. [Why Rust Core](#8-why-rust-core)
-9. [Rust Refactor Implementation Plan](#9-rust-refactor-implementation-plan)
-10. [Reference Materials](#10-reference-materials)
+8. [Dual-Mode Architecture](#8-dual-mode-architecture) ← **CRITICAL PATTERN**
+9. [Why Rust Core](#9-why-rust-core)
+10. [Rust Refactor Implementation Plan](#10-rust-refactor-implementation-plan)
+11. [Reference Materials](#11-reference-materials)
 
 ---
 
@@ -523,14 +524,154 @@ Early prototypes with excellent documentation:
 
 ---
 
-## 8. Why Rust Core
+## 8. Dual-Mode Architecture
 
-### The Current Problem
+### The TypeScript Branch Pattern
 
-All current implementations have a limitation: **CRA is a service, not infrastructure.**
+The TypeScript implementation (`claude/design-cra-architecture-WdoAv`) demonstrates an excellent **dual-mode architecture** that the Rust core MUST adopt:
 
 ```
-Current (Python/TypeScript):
+┌─────────────────────────────────────────────────────────────────────┐
+│                      DUAL-MODE ARCHITECTURE                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   Mode 1: EMBEDDED (Library)          Mode 2: SERVICE (HTTP)        │
+│   ─────────────────────────           ──────────────────────        │
+│                                                                      │
+│   ┌──────────────────────┐           ┌──────────────────────┐       │
+│   │   Your Application   │           │   Your Application   │       │
+│   │                      │           │                      │       │
+│   │   ┌──────────────┐   │           │   HTTP Client        │       │
+│   │   │  CRARuntime  │   │           │        │             │       │
+│   │   │  (in-process)│   │           └────────┼─────────────┘       │
+│   │   └──────────────┘   │                    │                     │
+│   │        │             │                    │ HTTP                │
+│   └────────┼─────────────┘                    ▼                     │
+│            │                           ┌──────────────────────┐     │
+│            │ Direct call               │   CRAServer          │     │
+│            │ ~0.001ms                  │   ┌──────────────┐   │     │
+│            ▼                           │   │  CRARuntime  │   │     │
+│   ┌──────────────────────┐             │   │  (in-process)│   │     │
+│   │    Atlas/Tools       │             │   └──────────────┘   │     │
+│   └──────────────────────┘             └──────────────────────┘     │
+│                                                                      │
+│   Use when:                            Use when:                     │
+│   • Same-process agents                • Multi-service architecture │
+│   • Minimum latency needed             • Language without bindings  │
+│   • Edge/browser deployment            • Centralized governance     │
+│   • WASM environments                  • Existing infrastructure    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### TypeScript Implementation Reference
+
+The TypeScript branch shows this pattern with two separate packages:
+
+**CRARuntime (packages/runtime/src/runtime.ts):**
+```typescript
+export class CRARuntime {
+  private atlasRegistry: AtlasRegistry;
+  private traceCollector: TraceCollector;
+  private sessions: Map<string, Session>;
+
+  constructor(config?: RuntimeConfig) {
+    this.atlasRegistry = new AtlasRegistry();
+    this.traceCollector = new TraceCollector();
+    this.sessions = new Map();
+  }
+
+  // Core library API - no HTTP, no server
+  async resolve(request: CARPRequest): Promise<CARPResolution> { ... }
+  async execute(sessionId: string, actionId: string, params: unknown): Promise<unknown> { ... }
+  async loadAtlas(path: string): Promise<void> { ... }
+  getTrace(sessionId: string): TraceEvent[] { ... }
+}
+```
+
+**CRAServer (packages/server/src/server.ts):**
+```typescript
+export class CRAServer {
+  private runtime: CRARuntime;  // ← Wraps the library
+  private app: Express;
+
+  constructor(config?: ServerConfig) {
+    this.runtime = new CRARuntime(config?.runtime);  // ← Composition
+    this.app = express();
+    this.setupRoutes();
+  }
+
+  private setupRoutes() {
+    this.app.post('/v1/resolve', async (req, res) => {
+      const resolution = await this.runtime.resolve(req.body);  // ← Delegates
+      res.json(resolution);
+    });
+  }
+
+  listen(port: number) {
+    this.app.listen(port);
+  }
+}
+```
+
+**Key Design Principles:**
+1. **Library-first** — The runtime is a complete, standalone library
+2. **Server wraps library** — HTTP layer is thin, just routing and serialization
+3. **Same behavior** — Embedded and HTTP modes produce identical results
+4. **No hidden state** — All state lives in the runtime, server is stateless
+
+### Scaling Path
+
+The TypeScript branch defines a clear scaling progression that the Rust implementation should enable:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         SCALING PATH                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   Stage 1: SINGLE-NODE              Stage 2: SAAS                   │
+│   ──────────────────────           ─────────────                    │
+│   • Embedded library                • Multi-tenant server           │
+│   • In-memory storage               • PostgreSQL storage            │
+│   • Single process                  • JWT authentication            │
+│   • For: Local dev, CLI             • For: Small teams              │
+│                                                                      │
+│   ┌────────────────────┐           ┌────────────────────┐           │
+│   │     Agent App      │           │    CRA Service     │           │
+│   │  ┌──────────────┐  │           │  ┌──────────────┐  │           │
+│   │  │  CRARuntime  │  │           │  │  CRAServer   │  │           │
+│   │  │  (embedded)  │  │           │  │  (shared)    │  │           │
+│   │  └──────────────┘  │           │  └──────────────┘  │           │
+│   └────────────────────┘           └────────────────────┘           │
+│                                                                      │
+│   Stage 3: ENTERPRISE               Stage 4: EDGE                   │
+│   ───────────────────              ────────────────                 │
+│   • SSO/SAML integration           • WASM in browser                │
+│   • Compliance dashboards          • Cloudflare Workers             │
+│   • Audit log retention            • Embedded in IoT                │
+│   • For: Large orgs                • For: Distributed agents        │
+│                                                                      │
+│   ┌────────────────────┐           ┌────────────────────┐           │
+│   │   Enterprise CRA   │           │  Edge Device/CDN   │           │
+│   │  ┌──────────────┐  │           │  ┌──────────────┐  │           │
+│   │  │  CRACluster  │  │           │  │  CRA-WASM    │  │           │
+│   │  │  (HA/Scaled) │  │           │  │  (embedded)  │  │           │
+│   │  └──────────────┘  │           │  └──────────────┘  │           │
+│   └────────────────────┘           └────────────────────┘           │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 9. Why Rust Core
+
+### The Infrastructure Requirement
+
+CRA needs to be **infrastructure** — embedded everywhere, invisible, just how things work:
+
+```
+Current State (Python/TypeScript HTTP):
 ┌─────────────┐      HTTP         ┌─────────────┐
 │   Agent     │ ────────────────▶ │  CRA Server │
 │             │ ◀────────────────  │             │
@@ -597,16 +738,22 @@ Rust Core compiles to:
 
 ---
 
-## 9. Rust Refactor Implementation Plan
+## 10. Rust Refactor Implementation Plan
 
-### Target Architecture
+### Target Architecture (Dual-Mode)
+
+The architecture MUST follow the dual-mode pattern demonstrated in the TypeScript branch:
 
 ```
 cra-rust/
-├── cra-core/           # Core Rust library
+├── cra-core/           # Core library (MODE 1: EMBEDDED)
 │   ├── Cargo.toml
 │   └── src/
-│       ├── lib.rs              # Public API
+│       ├── lib.rs              # Public API (CRARuntime)
+│       ├── runtime/
+│       │   ├── mod.rs          # CRARuntime struct
+│       │   ├── config.rs       # RuntimeConfig
+│       │   └── session.rs      # Session management
 │       ├── carp/
 │       │   ├── mod.rs
 │       │   ├── request.rs      # CARPRequest
@@ -622,129 +769,338 @@ cra-rust/
 │       ├── atlas/
 │       │   ├── mod.rs
 │       │   ├── manifest.rs     # AtlasManifest
+│       │   ├── registry.rs     # Atlas registry
 │       │   ├── loader.rs       # Load from disk/memory
 │       │   └── validator.rs    # JSON Schema validation
+│       ├── storage/
+│       │   ├── mod.rs          # StorageBackend trait
+│       │   ├── memory.rs       # In-memory (default)
+│       │   └── postgres.rs     # PostgreSQL (optional)
 │       └── ffi/
 │           └── c_api.rs        # C ABI for any language
 │
+├── cra-server/         # HTTP server (MODE 2: SERVICE)
+│   ├── Cargo.toml      # Depends on cra-core
+│   └── src/
+│       ├── main.rs             # CLI entry point
+│       ├── lib.rs              # CRAServer struct
+│       ├── routes/
+│       │   ├── mod.rs
+│       │   ├── sessions.rs     # /v1/sessions/*
+│       │   ├── resolve.rs      # /v1/resolve
+│       │   ├── execute.rs      # /v1/sessions/{id}/execute
+│       │   ├── traces.rs       # /v1/sessions/{id}/trace
+│       │   └── atlases.rs      # /v1/atlases/*
+│       ├── auth/
+│       │   ├── mod.rs
+│       │   ├── jwt.rs          # JWT validation
+│       │   └── api_key.rs      # API key validation
+│       ├── middleware/
+│       │   ├── mod.rs
+│       │   ├── tenant.rs       # Multi-tenancy
+│       │   └── rate_limit.rs   # Rate limiting
+│       └── config.rs           # ServerConfig
+│
 ├── cra-python/         # Python binding (PyO3)
-│   ├── Cargo.toml
+│   ├── Cargo.toml      # Depends on cra-core
 │   ├── src/lib.rs
 │   └── python/cra/
 │       ├── __init__.py
-│       ├── resolver.py
+│       ├── runtime.py          # CRARuntime wrapper
 │       └── middleware/
 │           ├── langchain.py
 │           └── crewai.py
 │
 ├── cra-node/           # Node.js binding (napi-rs)
-│   ├── Cargo.toml
+│   ├── Cargo.toml      # Depends on cra-core
 │   ├── src/lib.rs
 │   └── npm/
 │       ├── package.json
 │       └── index.d.ts
 │
 └── cra-wasm/           # WASM binding (wasm-bindgen)
-    ├── Cargo.toml
+    ├── Cargo.toml      # Depends on cra-core (no_std where possible)
     ├── src/lib.rs
     └── pkg/            # Generated npm package
 ```
 
-### Phase 1: Rust Core
+### Dual-Mode API Design
 
-Implement core engine validated against `specs/`:
+The Rust implementation MUST expose the same API for both modes:
 
+**Mode 1: Embedded Library (cra-core)**
 ```rust
-// Public API
-pub struct Resolver {
-    atlases: HashMap<String, Atlas>,
-    sessions: HashMap<String, Session>,
+use cra_core::{CRARuntime, RuntimeConfig};
+
+// Create runtime (library usage)
+let config = RuntimeConfig::builder()
+    .with_storage(MemoryStorage::new())  // Or PostgresStorage
+    .build();
+
+let mut runtime = CRARuntime::new(config);
+
+// Load atlases
+runtime.load_atlas("./atlas.json")?;
+
+// Create session and resolve (direct call, ~0.001ms)
+let session = runtime.create_session("agent-1", "Help with support")?;
+let resolution = runtime.resolve(&session.id, &request)?;
+
+// Execute action
+let result = runtime.execute(&session.id, "ticket.get", json!({"ticket_id": "123"}))?;
+
+// Get trace
+let trace = runtime.get_trace(&session.id)?;
+```
+
+**Mode 2: HTTP Server (cra-server)**
+```rust
+use cra_server::{CRAServer, ServerConfig};
+use cra_core::{CRARuntime, RuntimeConfig};
+
+// Create runtime first (same as embedded)
+let runtime = CRARuntime::new(RuntimeConfig::default());
+
+// Wrap in server (thin HTTP layer)
+let server_config = ServerConfig::builder()
+    .with_port(3000)
+    .with_auth(JWTAuth::new("secret"))
+    .build();
+
+let server = CRAServer::new(runtime, server_config);  // ← Composition!
+server.listen().await?;  // Starts HTTP server
+```
+
+**Key Principle: Server Wraps Runtime**
+```rust
+// CRAServer implementation pattern
+pub struct CRAServer {
+    runtime: CRARuntime,  // ← The library
+    config: ServerConfig,
 }
 
-impl Resolver {
-    pub fn new() -> Self;
+impl CRAServer {
+    pub fn new(runtime: CRARuntime, config: ServerConfig) -> Self {
+        Self { runtime, config }
+    }
 
-    pub fn load_atlas(&mut self, manifest: &str) -> Result<AtlasId, Error>;
+    // HTTP handlers delegate to runtime
+    async fn handle_resolve(&self, req: Request) -> Response {
+        let carp_request: CARPRequest = req.json().await?;
+        let resolution = self.runtime.resolve(&req.session_id(), &carp_request)?;
+        Response::json(&resolution)
+    }
+}
+```
+
+### Phase 1: Rust Core Library (cra-core)
+
+Implement the core runtime as a standalone library:
+
+```rust
+// cra-core/src/lib.rs - Public API
+pub use runtime::{CRARuntime, RuntimeConfig};
+pub use carp::{CARPRequest, CARPResolution};
+pub use trace::{TRACEEvent, TraceCollector};
+pub use atlas::{Atlas, AtlasRegistry};
+pub use storage::{StorageBackend, MemoryStorage};
+
+// cra-core/src/runtime/mod.rs
+pub struct CRARuntime {
+    config: RuntimeConfig,
+    atlas_registry: AtlasRegistry,
+    trace_collector: TraceCollector,
+    sessions: HashMap<String, Session>,
+    storage: Box<dyn StorageBackend>,
+}
+
+impl CRARuntime {
+    pub fn new(config: RuntimeConfig) -> Self;
+
+    // Atlas management
+    pub fn load_atlas(&mut self, path: &str) -> Result<AtlasId, Error>;
+    pub fn load_atlas_from_json(&mut self, json: &str) -> Result<AtlasId, Error>;
     pub fn unload_atlas(&mut self, atlas_id: &str) -> Result<(), Error>;
+    pub fn list_atlases(&self) -> Vec<&Atlas>;
 
-    pub fn create_session(&mut self, agent_id: &str, goal: &str) -> Result<SessionId, Error>;
+    // Session management
+    pub fn create_session(&mut self, agent_id: &str, goal: &str) -> Result<Session, Error>;
+    pub fn get_session(&self, session_id: &str) -> Option<&Session>;
     pub fn end_session(&mut self, session_id: &str) -> Result<(), Error>;
 
-    pub fn resolve(&self, request: &CARPRequest) -> Result<CARPResolution, Error>;
+    // CARP operations
+    pub fn resolve(&self, session_id: &str, request: &CARPRequest) -> Result<CARPResolution, Error>;
     pub fn execute(&mut self, session_id: &str, action_id: &str, params: Value) -> Result<Value, Error>;
 
+    // TRACE operations
     pub fn get_trace(&self, session_id: &str) -> Result<Vec<TRACEEvent>, Error>;
     pub fn verify_chain(&self, session_id: &str) -> Result<ChainVerification, Error>;
     pub fn replay(&self, trace: &[TRACEEvent], atlas: &Atlas) -> Result<ReplayResult, Error>;
 }
 ```
 
-### Phase 2: Python Binding
+**Phase 1 Deliverables:**
+- [ ] CARP resolver with policy evaluation
+- [ ] TRACE collector with SHA-256 hash chain
+- [ ] Atlas loader and validator
+- [ ] In-memory storage backend
+- [ ] 100% conformance test passing
 
-Drop-in replacement for current Python:
+### Phase 2: HTTP Server (cra-server)
+
+Implement the HTTP layer as a thin wrapper around cra-core:
+
+```rust
+// cra-server/src/lib.rs
+use cra_core::CRARuntime;
+
+pub struct CRAServer {
+    runtime: CRARuntime,  // ← Wraps the library (composition)
+    config: ServerConfig,
+}
+
+impl CRAServer {
+    pub fn new(runtime: CRARuntime, config: ServerConfig) -> Self {
+        Self { runtime, config }
+    }
+
+    pub async fn listen(&self) -> Result<(), Error> {
+        let app = self.build_router();
+        axum::Server::bind(&self.config.addr)
+            .serve(app.into_make_service())
+            .await
+    }
+
+    fn build_router(&self) -> Router {
+        Router::new()
+            .route("/v1/sessions", post(handlers::create_session))
+            .route("/v1/sessions/:id", get(handlers::get_session))
+            .route("/v1/sessions/:id", delete(handlers::end_session))
+            .route("/v1/resolve", post(handlers::resolve))
+            .route("/v1/sessions/:id/execute", post(handlers::execute))
+            .route("/v1/sessions/:id/trace", get(handlers::get_trace))
+            .route("/v1/atlases", get(handlers::list_atlases))
+            .route("/v1/atlases", post(handlers::load_atlas))
+            .layer(auth_layer)
+            .with_state(Arc::new(self.runtime.clone()))
+    }
+}
+```
+
+**Phase 2 Deliverables:**
+- [ ] HTTP server with all OpenAPI routes
+- [ ] JWT and API key authentication
+- [ ] Multi-tenant middleware
+- [ ] Rate limiting
+- [ ] PostgreSQL storage backend (optional feature)
+
+### Phase 3: Python Binding (cra-python)
+
+Drop-in replacement for current Python implementation:
 
 ```python
-from cra import Resolver
+from cra import CRARuntime, RuntimeConfig
 
-# Rust-powered, but same API
-resolver = Resolver()
-resolver.load_atlas("./atlas.json")
+# Rust-powered, but same API as TypeScript runtime
+config = RuntimeConfig(storage="memory")  # or "postgres://..."
+runtime = CRARuntime(config)
 
-resolution = resolver.resolve(
-    goal="Help with support ticket",
+# Load atlases
+runtime.load_atlas("./atlas.json")
+
+# Create session and resolve (direct call to Rust, ~0.001ms)
+session = runtime.create_session(
     agent_id="support-agent",
-    session_id="session-123"
+    goal="Help with support ticket"
 )
+
+resolution = runtime.resolve(session.id, request)
 
 for action in resolution.allowed_actions:
     print(f"Available: {action.action_id}")
 
-# LangChain middleware wraps Rust core
-from cra.middleware.langchain import LangChainMiddleware
+# Execute action
+result = runtime.execute(session.id, "ticket.get", {"ticket_id": "123"})
 
-middleware = LangChainMiddleware(resolver)
-tools = middleware.get_tools(goal="Customer support")
+# Get trace
+trace = runtime.get_trace(session.id)
 ```
 
-### Phase 3: Node.js Binding
+**LangChain/CrewAI Middleware (Python wrapper around Rust runtime):**
+```python
+from cra.middleware.langchain import CRAMiddleware
 
-Native addon for MCP and tooling:
+# Wraps Rust runtime in LangChain-compatible tools
+middleware = CRAMiddleware(runtime)
+tools = middleware.get_tools(goal="Customer support")
+
+# Use with LangChain agents
+from langchain.agents import AgentExecutor
+agent = AgentExecutor(agent=agent, tools=tools)
+```
+
+**Phase 3 Deliverables:**
+- [ ] PyO3 bindings exposing full CRARuntime API
+- [ ] Compatible with existing Python middleware patterns
+- [ ] LangChain/CrewAI middleware wrappers
+- [ ] Pip installable package with pre-built wheels
+
+### Phase 4: Node.js Binding (cra-node)
+
+Native addon for MCP servers and tooling:
 
 ```typescript
-import { Resolver } from '@cra/core';
+import { CRARuntime, RuntimeConfig } from '@cra/core';
 
-const resolver = new Resolver();
-await resolver.loadAtlas('./atlas.json');
+// Same API pattern as Rust and Python
+const config: RuntimeConfig = { storage: 'memory' };
+const runtime = new CRARuntime(config);
 
-const resolution = resolver.resolve({
-  goal: 'Execute MCP tool',
-  agentId: 'mcp-client',
-  sessionId: 'session-456',
-});
+// Load atlases
+await runtime.loadAtlas('./atlas.json');
 
-// MCP server uses native binding
+// Create session and resolve
+const session = runtime.createSession('mcp-client', 'Execute MCP tool');
+const resolution = runtime.resolve(session.id, request);
+
+// MCP server wrapping CRA runtime
 import { createMCPServer } from '@cra/mcp';
-const server = createMCPServer(resolver);
+const mcpServer = createMCPServer(runtime);  // ← Wraps runtime
+mcpServer.listen(3001);
 ```
 
-### Phase 4: WASM Build
+**Phase 4 Deliverables:**
+- [ ] napi-rs bindings exposing full CRARuntime API
+- [ ] MCP server implementation
+- [ ] npm package with pre-built binaries
+
+### Phase 5: WASM Build (cra-wasm)
 
 Browser and edge deployment:
 
 ```typescript
-import init, { Resolver } from '@cra/wasm';
+import init, { CRARuntime } from '@cra/wasm';
 
-await init(); // Load WASM module
+await init(); // Load WASM module (~300KB)
 
-const resolver = new Resolver();
-resolver.loadAtlasFromJson(atlasJson);
+const runtime = new CRARuntime();
+runtime.loadAtlasFromJson(atlasJson);
 
-// Runs entirely client-side
-const resolution = resolver.resolve({
-  goal: 'Client-side validation',
-  agentId: 'browser-agent',
-});
+// Create session and resolve (runs entirely client-side)
+const session = runtime.createSession('browser-agent', 'Client-side validation');
+const resolution = runtime.resolve(session.id, request);
+
+// Works in:
+// - Browsers (React, Vue, Svelte)
+// - Cloudflare Workers
+// - Deno Deploy
+// - Edge functions
 ```
+
+**Phase 5 Deliverables:**
+- [ ] wasm-bindgen build with full API
+- [ ] <500KB bundle size
+- [ ] Works in browsers and edge runtimes
 
 ### Conformance Requirements
 
@@ -758,7 +1114,7 @@ The Rust implementation MUST pass all tests in `specs/conformance/`:
 
 ---
 
-## 10. Reference Materials
+## 11. Reference Materials
 
 ### Key Files in This Repository
 
@@ -781,11 +1137,26 @@ The Rust implementation MUST pass all tests in `specs/conformance/`:
 | Metric | Target |
 |--------|--------|
 | Conformance Tests | 100% pass |
-| Resolution Latency | <0.01ms |
-| Binary Size | <1MB (release) |
+| Embedded Resolution Latency | <0.01ms (library mode) |
+| HTTP Resolution Latency | <5ms (server mode) |
+| Core Binary Size | <1MB (release) |
 | WASM Size | <500KB |
 | Python Binding | Compatible with existing middleware |
 | Node Binding | Works with MCP server |
+| Dual-Mode Parity | Identical behavior embedded vs. HTTP |
+
+### TypeScript Reference Implementation
+
+The TypeScript branch (`claude/design-cra-architecture-WdoAv`) provides working reference code:
+
+| File | What to Learn |
+|------|---------------|
+| `packages/runtime/src/runtime.ts` | CRARuntime library pattern |
+| `packages/server/src/server.ts` | CRAServer wrapping runtime |
+| `packages/trace/src/collector.ts` | Hash chain implementation |
+| `packages/atlas/src/loader.ts` | Atlas validation logic |
+| `docs/ARCHITECTURE.md` | Scaling path stages |
+| `docs/IMPROVEMENT_PLAN.md` | Gaps to address |
 
 ### Getting Started
 
@@ -815,14 +1186,62 @@ cargo test --features conformance
 3. **Packages context in Atlases** — Versioned, portable, governed
 4. **Targets infrastructure status** — Embedded everywhere, invisible
 
-**The Rust refactor** will make CRA truly universal by enabling:
-- In-process embedding (no HTTP overhead)
-- Cross-platform deployment (Python, Node, WASM, native)
-- OS-level integration (system daemons)
-- Browser/edge execution (WASM)
+### Dual-Mode Architecture Is Mandatory
 
-The `specs/` directory is the **source of truth**. All implementations must conform to these specifications and pass the conformance test suite.
+The Rust implementation MUST follow the dual-mode pattern from the TypeScript branch:
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                      CRA ARCHITECTURE                          │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│   cra-core (CRARuntime)         cra-server (CRAServer)        │
+│   ─────────────────────         ──────────────────────        │
+│   • Standalone library           • Wraps cra-core             │
+│   • No HTTP, no server           • Thin HTTP layer            │
+│   • In-process calls             • Same API via REST          │
+│   • ~0.001ms latency             • ~5ms latency               │
+│   • Use for: embedding           • Use for: services          │
+│                                                                │
+│   ┌──────────────┐              ┌──────────────────┐          │
+│   │  CRARuntime  │◀─────────────│    CRAServer     │          │
+│   │              │  composes    │   ┌──────────┐   │          │
+│   │              │              │   │ runtime  │   │          │
+│   └──────────────┘              │   └──────────┘   │          │
+│         │                       └──────────────────┘          │
+│         │ bindings                                             │
+│         ▼                                                      │
+│   ┌────────────────────────────────────────────────┐          │
+│   │  cra-python  │  cra-node  │  cra-wasm          │          │
+│   │  (PyO3)      │  (napi-rs) │  (wasm-bindgen)    │          │
+│   └────────────────────────────────────────────────┘          │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Key Principle:** The server is just a thin wrapper. All logic lives in the runtime library.
+
+### The Rust Refactor Enables
+
+| Capability | How |
+|------------|-----|
+| **In-process embedding** | cra-core as library |
+| **HTTP service** | cra-server wrapping cra-core |
+| **Python agents** | PyO3 binding to cra-core |
+| **Node.js/MCP** | napi-rs binding to cra-core |
+| **Browser/Edge** | WASM build of cra-core |
+| **OS daemon** | Native binary of cra-server |
+| **Scaling path** | Single-Node → SaaS → Enterprise → Edge |
+
+### Source of Truth
+
+The `specs/` directory defines all behavior:
+- `specs/PROTOCOL.md` — Wire formats and semantics
+- `specs/schemas/*.json` — JSON Schema validation
+- `specs/conformance/golden/` — Reference test cases
+
+All implementations (Rust, Python bindings, HTTP server) MUST pass conformance tests.
 
 ---
 
-*This document provides complete context for implementing CRA as a protocol-first Rust core with universal language bindings.*
+*This document provides complete context for implementing CRA as a protocol-first Rust core with dual-mode architecture (embedded library + HTTP server) and universal language bindings.*
