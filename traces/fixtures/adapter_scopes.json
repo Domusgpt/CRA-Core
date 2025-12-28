@@ -1,0 +1,29 @@
+{
+  "atlas_id": "cra.reference",
+  "version": "0.1.0",
+  "actions": [
+    {
+      "action_id": "openai.tools.fetch_repo_status",
+      "required_scopes": ["repo.read"],
+      "risk": "low",
+      "rate_limit": {"limit": 10, "window_seconds": 300}
+    },
+    {
+      "action_id": "anthropic.skills.summarize_context",
+      "required_scopes": [],
+      "risk": "low"
+    },
+    {
+      "action_id": "google.adk.launch_workflow",
+      "required_scopes": ["workflow.admin"],
+      "risk": "high",
+      "approval_policy": "required"
+    },
+    {
+      "action_id": "mcp.list_resources",
+      "required_scopes": ["inventory.read"],
+      "risk": "low"
+    }
+  ],
+  "notes": "Fixture used by conformance docs to assert adapter scope/approval metadata." 
+}
