@@ -1,4 +1,4 @@
-# CRA Architecture v0.1
+# CRA Architecture v0.2
 
 ## System Overview
 
@@ -25,18 +25,25 @@ CRA (Context Registry Agents) is a protocol-first authority layer for agentic sy
 │  │  Claude/MCP) │                       └──────────────────────────────┘   │
 │  └──────────────┘                                                           │
 │         │                                                                    │
-│         │ TRACE Events                                                      │
-│         ▼                                                                    │
-│  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                        TRACE Collector                                │  │
-│  │         (Append-only Event Stream + Artifact Hashing)                │  │
-│  └──────────────────────────────────────────────────────────────────────┘  │
+│         │ TRACE Events        ┌──────────────────────────────────────────┐ │
+│         ▼                     │              Storage Layer                │ │
+│  ┌─────────────────┐          │   (File / PostgreSQL Persistence)        │ │
+│  │ TRACE Collector │─────────►│                                          │ │
+│  │ + Redaction     │          └──────────────────────────────────────────┘ │
+│  └─────────────────┘                                                        │
 │         │                                                                    │
-│         ▼                                                                    │
-│  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                      CLI Telemetry Terminal                           │  │
-│  │              (JSONL Stream + Human-Friendly Rendering)               │  │
-│  └──────────────────────────────────────────────────────────────────────┘  │
+│         ├─────────────────────────────────────────────────────────────────┐ │
+│         ▼                                                                  │ │
+│  ┌──────────────────────────────────────────────────────────────────────┐ │ │
+│  │                        HTTP/WebSocket Server                          │ │ │
+│  │         (REST API + SSE Streaming + WebSocket Trace)                 │ │ │
+│  └──────────────────────────────────────────────────────────────────────┘ │ │
+│         │                                                                  │ │
+│         ▼                                                                  ▼ │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                        Dual-Mode UI                                   │   │
+│  │    Human Terminal Interface    │    Agent JSON API                   │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -158,7 +165,206 @@ interface PlatformAdapter {
 }
 ```
 
-### 6. Registry Service (`packages/registry`) [Future]
+### 6. HTTP Server (`packages/server`)
+
+REST API and WebSocket server for CRA operations.
+
+**Responsibilities:**
+- CARP resolve/execute endpoints
+- Batch operations (up to 100 per request)
+- SSE streaming for long-running resolutions
+- WebSocket streaming for TRACE events
+- Health checks and discovery
+
+**Key Interfaces:**
+```typescript
+interface CRAServer {
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  getConfig(): ServerConfig;
+}
+
+// REST Endpoints
+POST /v1/resolve     // CARP resolution
+POST /v1/execute     // Action execution
+POST /v1/batch       // Batch operations
+POST /v1/stream/resolve  // SSE streaming
+GET  /v1/discover    // Agent discovery
+GET  /health         // Health check
+WS   /v1/trace       // WebSocket trace stream
+```
+
+### 7. Storage Layer (`packages/storage`)
+
+Pluggable persistence for resolutions, sessions, and traces.
+
+**Responsibilities:**
+- Resolution storage with TTL
+- Session state management
+- TRACE event persistence
+- Transaction support (PostgreSQL)
+- Bulk operations
+
+**Key Interfaces:**
+```typescript
+interface Store {
+  // Resolutions
+  saveResolution(record: ResolutionRecord): Promise<void>;
+  getResolution(id: string): Promise<ResolutionRecord | null>;
+  listResolutions(filter?: ResolutionFilter): Promise<ResolutionRecord[]>;
+
+  // Sessions
+  saveSession(record: SessionRecord): Promise<void>;
+  getSession(id: string): Promise<SessionRecord | null>;
+
+  // Traces
+  saveTraceEvents(events: TRACEEvent[]): Promise<void>;
+  getTraceEvents(traceId: string): Promise<TRACEEvent[]>;
+}
+
+// Factory
+function createStore(config: StoreConfig): Store;
+type StoreType = 'memory' | 'file' | 'postgresql';
+```
+
+### 8. Redaction Engine (`packages/trace`)
+
+Pattern-based and field-level sensitive data redaction.
+
+**Responsibilities:**
+- Pattern matching (regex-based)
+- Field-level redaction rules
+- Multiple redaction modes (full, partial, hash, mask, remove)
+- TRACE event redaction
+- Sensitive field detection
+
+**Key Interfaces:**
+```typescript
+interface RedactionEngine {
+  redactEvent(event: TRACEEvent): TRACEEvent;
+  redactString(value: string): string;
+  redactObject<T>(obj: T, basePath?: string): T;
+}
+
+// Built-in patterns
+type PatternName = 'email' | 'phone' | 'ssn' | 'credit_card' |
+                   'api_key' | 'jwt' | 'ip_address' | 'password';
+
+// Redaction modes
+type RedactionMode = 'full' | 'partial' | 'hash' | 'mask' | 'remove';
+```
+
+### 9. Golden Trace Testing (`packages/trace`)
+
+Record, replay, and validate TRACE sequences for testing.
+
+**Responsibilities:**
+- Trace recording from collectors
+- Golden trace storage and comparison
+- Configurable field ignoring
+- Fingerprinting for trace identification
+- Test framework integration
+
+**Key Interfaces:**
+```typescript
+interface GoldenTraceManager {
+  startRecording(collector: TRACECollector, name: string): void;
+  stopRecording(): GoldenTraceTest;
+  registerGolden(name: string, trace: GoldenTraceTest): void;
+  compare(name: string, events: TRACEEvent[]): GoldenTraceResult;
+  fingerprint(events: TRACEEvent[]): string;
+}
+
+interface GoldenTraceAssertion {
+  matchesGolden(name: string): GoldenTraceResult;
+  hasEventType(type: string): boolean;
+  hasEventCount(count: number): boolean;
+  recordAsGolden(name: string): GoldenTraceTest;
+}
+```
+
+### 10. Dual-Mode UI (`packages/ui`)
+
+Human-friendly terminal and agent-optimized JSON interface.
+
+**Responsibilities:**
+- Interactive terminal with command history
+- Real-time trace visualization
+- Agent discovery endpoint
+- Structured JSON API for agents
+- agents.md snippet generation
+
+**Key Interfaces:**
+```typescript
+interface UIServer {
+  start(): Promise<void>;
+  stop(): Promise<void>;
+}
+
+interface AgentAPI {
+  getDashboardData(): AgentDashboardData;
+  getTerminalData(): AgentTerminalData;
+  getTracesData(): AgentTracesData;
+  getTraceData(traceId: string): AgentTraceData;
+  getFullContext(): AgentFullContext;
+}
+
+// Agent-optimized response includes
+interface AgentFullContext {
+  agents_md_snippet: string;  // Ready-to-use agents.md config
+  quick_start: string[];
+  capabilities: CapabilityInfo[];
+}
+```
+
+### 11. OpenTelemetry Export (`packages/otel`)
+
+Bridge TRACE events to OpenTelemetry-compatible systems.
+
+**Responsibilities:**
+- TRACE to OTel span conversion
+- Attribute mapping
+- Batch export
+- Multiple protocol support (gRPC, HTTP)
+
+**Key Interfaces:**
+```typescript
+interface OTelExporter {
+  export(event: TRACEEvent): void;
+  exportBatch(events: TRACEEvent[]): void;
+  flush(): Promise<void>;
+  shutdown(): Promise<void>;
+}
+
+interface OTelConfig {
+  endpoint: string;
+  serviceName: string;
+  protocol: 'grpc' | 'http';
+  headers?: Record<string, string>;
+}
+```
+
+### 12. MCP Integration (`packages/mcp`)
+
+Model Context Protocol server implementation.
+
+**Responsibilities:**
+- MCP server lifecycle
+- Resource exposure
+- Tool registration
+- CRA-to-MCP translation
+
+**Key Interfaces:**
+```typescript
+interface MCPServer {
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  registerResource(resource: MCPResource): void;
+  registerTool(tool: MCPTool): void;
+}
+```
+
+### 13. Registry Service (`packages/registry`) [Future]
 
 Marketplace for Atlas discovery, licensing, and certification.
 

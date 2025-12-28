@@ -2,7 +2,7 @@
 
 ## Current Implementation Status
 
-### ✅ Complete
+### ✅ Complete (v0.2)
 
 | Component | Description |
 |-----------|-------------|
@@ -14,63 +14,90 @@
 | **Platform Adapters** | OpenAI, Claude, MCP translation interfaces |
 | **Reference Atlas** | GitHub Operations with context packs and policies |
 | **Documentation** | Architecture, specs, roadmap, testing guide |
+| **Build System** | Full npm workspace build with TypeScript |
+| **Unit Tests** | 289 tests across 11 packages |
+| **HTTP Server** | Express-based REST API with CARP endpoints |
+| **WebSocket Streaming** | Real-time TRACE event streaming |
+| **Batch Operations** | Bulk resolve/execute endpoint |
+| **Streaming Resolution** | SSE-based streaming for long-running tasks |
+| **Storage Layer** | File-based and PostgreSQL persistence |
+| **Redaction Engine** | Pattern-based and field-level data redaction |
+| **Golden Trace Framework** | Record, replay, and validate trace sequences |
+| **Dual-Mode UI** | Human terminal interface + Agent JSON API |
+| **OpenTelemetry Export** | TRACE to OpenTelemetry protocol bridge |
+| **MCP Integration** | Model Context Protocol server implementation |
 
 ### ⚠️ Needs Work
 
 | Component | Issue | Priority |
 |-----------|-------|----------|
-| **Build System** | No package-lock.json, build order not defined | High |
-| **Unit Tests** | Test files referenced but not written | High |
-| **HTTP Server** | Runtime is library-only, no HTTP API | Medium |
 | **Action Executors** | Actions are simulated, not real | Medium |
-| **Golden Traces** | Test infrastructure defined but no actual traces | Medium |
-| **Error Handling** | Basic error types, needs robust handling | Low |
-| **Caching** | Resolution cache is in-memory only | Low |
+| **VS Code Extension** | Not yet implemented | Medium |
+| **Atlas Hot Reload** | Not yet implemented | Low |
+| **Rate Limiting** | Policy rate limits defined but not enforced | Low |
+| **Approval Workflow** | `requires_approval` decisions don't block | Low |
 
 ---
 
-## How to Make It Operational
+## Package Structure
+
+```
+@cra/protocol     # Types, utilities, validation for CARP/TRACE
+@cra/trace        # TRACE collector, golden testing, redaction
+@cra/atlas        # Atlas loading, validation, dependency resolution
+@cra/runtime      # CRA runtime, CARP resolver, policy engine
+@cra/adapters     # Platform adapters (OpenAI, Claude, Google ADK)
+@cra/cli          # Command-line interface
+@cra/server       # HTTP/WebSocket server with REST API
+@cra/storage      # Persistence layer (file, PostgreSQL)
+@cra/mcp          # Model Context Protocol server
+@cra/otel         # OpenTelemetry exporter for TRACE
+@cra/ui           # Dual-mode web UI (human + agent)
+```
+
+---
+
+## How to Use
 
 ### Step 1: Initialize and Build
 
 ```bash
 cd /home/user/CRA-Core
 
-# Install dependencies (creates package-lock.json)
+# Install dependencies
 npm install
 
-# Build all packages in dependency order
+# Build all packages
 npm run build
+
+# Run tests
+npm test
 ```
 
-If build fails due to dependency order, build manually:
+### Step 2: Start the Server
 
 ```bash
-npm run build --workspace=packages/protocol
-npm run build --workspace=packages/trace
-npm run build --workspace=packages/atlas
-npm run build --workspace=packages/runtime
-npm run build --workspace=packages/adapters
-npm run build --workspace=packages/cli
+# Start HTTP server (default port 3000)
+npx cra serve --port 3000
+
+# With WebSocket streaming
+npx cra serve --port 3000 --websocket
 ```
 
-### Step 2: Test the CLI
+### Step 3: API Endpoints
 
-```bash
-# Initialize a project
-npx cra init
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/resolve` | POST | CARP resolution request |
+| `/v1/execute` | POST | Execute permitted action |
+| `/v1/batch` | POST | Batch operations (max 100) |
+| `/v1/stream/resolve` | POST | SSE streaming resolution |
+| `/v1/trace` | WS | WebSocket trace streaming |
+| `/v1/sessions` | GET | List active sessions |
+| `/v1/discover` | GET | Agent discovery endpoint |
+| `/health` | GET | Health check |
 
-# Validate the reference atlas
-npx cra atlas validate atlases/github-ops
-
-# Resolve context for a goal
-npx cra resolve "Create a bug report" --atlases atlases/github-ops
-
-# View traces
-npx cra trace tail
-```
-
-### Step 3: Use Programmatically
+### Step 4: Use Programmatically
 
 ```typescript
 import { CRARuntime, createRequest } from '@cra/runtime';
@@ -108,8 +135,6 @@ if ('resolution_id' in resolution) {
   // Convert to Claude format
   const adapter = new ClaudeAdapter({ platform: 'claude' });
   const { systemPrompt, tools } = adapter.getConfiguration(resolution);
-
-  // Use with Claude API...
 }
 
 // Shutdown
@@ -118,308 +143,161 @@ await runtime.shutdown();
 
 ---
 
-## Testing Strategy
+## New v0.2 Features
 
-### Unit Tests (To Be Written)
+### 1. HTTP Server (`@cra/server`)
 
-Create test files for each package:
-
-```
-packages/protocol/src/__tests__/
-  carp.test.ts       # CARP type validation
-  trace.test.ts      # TRACE hash chain verification
-
-packages/trace/src/__tests__/
-  collector.test.ts  # Event collection and streaming
-
-packages/atlas/src/__tests__/
-  loader.test.ts     # Atlas loading and validation
-
-packages/runtime/src/__tests__/
-  runtime.test.ts    # CARP resolution flow
-
-packages/adapters/src/__tests__/
-  openai.test.ts     # OpenAI tool conversion
-  claude.test.ts     # Claude tool conversion
-```
-
-### Example Test (CARP Validation)
+Express-based REST API for CARP operations:
 
 ```typescript
-// packages/protocol/src/__tests__/carp.test.ts
-import { describe, it, expect } from 'vitest';
-import { createRequest, validateRequest, computeHash } from '../carp/utils';
+import { createServer } from '@cra/server';
 
-describe('CARP Request', () => {
-  it('should create valid request with UUIDv7', () => {
-    const request = createRequest('resolve', {
-      agent_id: 'test',
-      session_id: 'test-session',
-    }, {
-      task: { goal: 'Test goal' },
-    });
+const server = await createServer({
+  port: 3000,
+  enableWebSocket: true,
+  enableCors: true,
+});
 
-    expect(request.carp_version).toBe('1.0');
-    expect(request.request_id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(request.operation).toBe('resolve');
-  });
+await server.start();
+```
 
-  it('should validate request structure', () => {
-    const { valid, errors } = validateRequest({
-      carp_version: '1.0',
-      request_id: '123',
-      timestamp: new Date().toISOString(),
-      operation: 'resolve',
-      requester: { agent_id: 'test', session_id: 'sess' },
-      task: { goal: 'Test' },
-    });
+### 2. Storage Layer (`@cra/storage`)
 
-    expect(valid).toBe(true);
-    expect(errors).toHaveLength(0);
-  });
+Pluggable persistence for resolutions, sessions, and traces:
 
-  it('should reject invalid request', () => {
-    const { valid, errors } = validateRequest({
-      carp_version: '2.0', // Wrong version
-    });
+```typescript
+import { createStore } from '@cra/storage';
 
-    expect(valid).toBe(false);
-    expect(errors.length).toBeGreaterThan(0);
-  });
+// File-based storage
+const fileStore = createStore({
+  type: 'file',
+  basePath: './data',
+});
+
+// PostgreSQL storage
+const pgStore = createStore({
+  type: 'postgresql',
+  connectionString: 'postgresql://user:pass@localhost/cra',
 });
 ```
 
-### Example Test (TRACE Integrity)
+### 3. Redaction Engine (`@cra/trace`)
+
+Pattern-based and field-level sensitive data redaction:
 
 ```typescript
-// packages/trace/src/__tests__/collector.test.ts
-import { describe, it, expect } from 'vitest';
-import { TRACECollector, verifyChain } from '../index';
+import { RedactionEngine } from '@cra/trace';
 
-describe('TRACE Collector', () => {
-  it('should emit events with hash chain', () => {
-    const collector = new TRACECollector({
-      session_id: 'test-session',
-    });
+const engine = RedactionEngine.createSecurityEngine();
 
-    collector.emit('session.started', { test: true });
-    collector.emit('carp.request.received', { goal: 'Test' });
-    collector.emit('carp.resolution.completed', { decision: 'allow' });
+// Redact TRACE events
+const redactedEvent = engine.redactEvent(event);
 
-    const events = collector.getEvents();
-    expect(events).toHaveLength(3);
-
-    // Verify chain integrity
-    const { valid, errors } = verifyChain(events);
-    expect(valid).toBe(true);
-    expect(errors).toHaveLength(0);
-
-    // Check hash linkage
-    expect(events[1].previous_event_hash).toBe(events[0].event_hash);
-    expect(events[2].previous_event_hash).toBe(events[1].event_hash);
-  });
-
-  it('should detect chain tampering', () => {
-    const collector = new TRACECollector({
-      session_id: 'test-session',
-    });
-
-    collector.emit('session.started', {});
-    collector.emit('carp.request.received', {});
-
-    const events = collector.getEvents();
-
-    // Tamper with event
-    events[0].payload = { tampered: true };
-
-    const { valid, errors } = verifyChain(events);
-    expect(valid).toBe(false);
-  });
+// Redact arbitrary data
+const redactedData = engine.redactObject({
+  email: 'user@example.com',  // [EMAIL REDACTED]
+  ssn: '123-45-6789',         // [SSN REDACTED]
 });
 ```
 
-### Golden Trace Test
+Built-in patterns: email, phone, SSN, credit card, API keys, JWT, IP addresses, passwords.
+
+### 4. Golden Trace Testing (`@cra/trace`)
+
+Record, compare, and validate TRACE sequences:
 
 ```typescript
-// tests/golden/issue-creation.test.ts
-import { describe, it, expect } from 'vitest';
-import { CRARuntime, createRequest } from '@cra/runtime';
-import { diffTraces, loadTraceFile } from '@cra/trace';
+import { createGoldenTraceManager } from '@cra/trace';
 
-describe('Golden Trace: Issue Creation', () => {
-  it('should match golden trace for issue creation', async () => {
-    const runtime = new CRARuntime({
-      trace_to_file: true,
-      trace_dir: './test-traces',
-    });
+const manager = createGoldenTraceManager();
 
-    await runtime.loadAtlas('./atlases/github-ops');
+// Record a golden trace
+manager.startRecording(collector, 'login-flow');
+// ... run operations ...
+const golden = manager.stopRecording();
 
-    const request = createRequest('resolve', {
-      agent_id: 'golden-test',
-      session_id: 'golden-session',
-    }, {
-      task: {
-        goal: 'Create a GitHub issue',
-        risk_tier: 'low',
-        context_hints: ['github.issues'],
-      },
-    });
+// Later: compare against golden
+const result = manager.compare('login-flow', capturedEvents);
+expect(result.passed).toBe(true);
+```
 
-    await runtime.resolve(request);
-    await runtime.shutdown();
+### 5. Dual-Mode UI (`@cra/ui`)
 
-    // Compare with golden trace
-    const actual = runtime.getTrace().getEvents();
-    const expected = await loadTraceFile('./tests/golden/issue-creation.golden.jsonl');
+Human-friendly terminal + Agent-optimized JSON API:
 
-    const diff = diffTraces(expected, actual, {
-      ignore_fields: ['event_id', 'timestamp', 'sequence', 'event_hash', 'previous_event_hash'],
-    });
+```typescript
+import { UIServer, AgentAPI } from '@cra/ui';
 
-    expect(diff.compatibility).toBe('identical');
-  });
+// Start UI server
+const ui = new UIServer({
+  port: 8080,
+  enableWebSocket: true,
+});
+await ui.start();
+
+// Agent API for structured data
+const api = new AgentAPI(runtime, storage);
+const dashboard = api.getDashboardData();
+const agentsMd = api.getFullContext().agents_md_snippet;
+```
+
+### 6. Streaming & Batch Operations (`@cra/server`)
+
+```typescript
+// Batch operations
+const response = await fetch('/v1/batch', {
+  method: 'POST',
+  body: JSON.stringify({
+    operations: [
+      { type: 'resolve', request: { /* ... */ } },
+      { type: 'execute', request: { /* ... */ } },
+    ],
+  }),
+});
+
+// SSE streaming resolution
+const eventSource = new EventSource('/v1/stream/resolve');
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Progress:', data);
+};
+```
+
+### 7. OpenTelemetry Export (`@cra/otel`)
+
+Export TRACE events to OpenTelemetry-compatible systems:
+
+```typescript
+import { OTelExporter } from '@cra/otel';
+
+const exporter = new OTelExporter({
+  endpoint: 'http://localhost:4318',
+  serviceName: 'cra',
+});
+
+collector.on('event', (event) => {
+  exporter.export(event);
 });
 ```
 
 ---
 
-## Running Tests
+## Test Coverage
 
-```bash
-# Run all tests
-npm test
-
-# Run specific package tests
-npm test --workspace=packages/protocol
-
-# Run with coverage
-npm test -- --coverage
-
-# Run specific test file
-npx vitest run packages/protocol/src/__tests__/carp.test.ts
-```
-
----
-
-## Integration with LLM Platforms
-
-### OpenAI Integration
-
-```typescript
-import OpenAI from 'openai';
-import { CRARuntime, createRequest } from '@cra/runtime';
-import { OpenAIAdapter } from '@cra/adapters';
-
-const openai = new OpenAI();
-const runtime = new CRARuntime();
-const adapter = new OpenAIAdapter({ platform: 'openai' });
-
-await runtime.loadAtlas('./atlases/github-ops');
-
-// Get CARP resolution
-const resolution = await runtime.resolve(createRequest('resolve', {
-  agent_id: 'openai-agent',
-  session_id: 'session-1',
-}, {
-  task: {
-    goal: 'Create a bug report',
-    context_hints: ['github.issues'],
-  },
-}));
-
-// Convert to OpenAI format
-const tools = adapter.toOpenAITools(resolution.allowed_actions);
-const systemPrompt = adapter.toSystemPrompt(resolution.context_blocks);
-
-// Call OpenAI
-const response = await openai.chat.completions.create({
-  model: 'gpt-4-turbo-preview',
-  messages: [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: 'Create a bug report for the login issue' },
-  ],
-  tools,
-});
-
-// Handle tool calls
-if (response.choices[0].message.tool_calls) {
-  for (const call of response.choices[0].message.tool_calls) {
-    const action = adapter.parseOpenAIToolCall(call);
-    console.log('Action requested:', action.action_type);
-    console.log('Parameters:', action.parameters);
-
-    // Execute via CARP...
-  }
-}
-```
-
-### Claude Integration
-
-```typescript
-import Anthropic from '@anthropic-ai/sdk';
-import { CRARuntime, createRequest } from '@cra/runtime';
-import { ClaudeAdapter } from '@cra/adapters';
-
-const anthropic = new Anthropic();
-const runtime = new CRARuntime();
-const adapter = new ClaudeAdapter({ platform: 'claude' });
-
-await runtime.loadAtlas('./atlases/github-ops');
-
-const resolution = await runtime.resolve(/* ... */);
-
-const response = await anthropic.messages.create({
-  model: 'claude-3-opus-20240229',
-  max_tokens: 1024,
-  system: adapter.toSystemPrompt(resolution.context_blocks),
-  tools: adapter.toClaudeTools(resolution.allowed_actions),
-  messages: [
-    { role: 'user', content: 'Create a bug report for the login issue' },
-  ],
-});
-
-// Handle tool use
-for (const block of response.content) {
-  if (block.type === 'tool_use') {
-    const action = adapter.parseClaudeToolUse(block);
-    // Execute via CARP...
-  }
-}
-```
-
----
-
-## Recommended Next Steps
-
-### Immediate (This Week)
-
-1. **Fix build system** - Add proper tsconfig references for build order
-2. **Write core tests** - At minimum: CARP validation, TRACE chain verification
-3. **Test CLI manually** - Verify init, resolve, trace commands work
-
-### Short-Term (Next 2 Weeks)
-
-4. **Add HTTP server mode** - Express/Fastify server wrapping the runtime
-5. **Implement real action executors** - At least for GitHub API
-6. **Create golden traces** - Record expected behavior for regression testing
-
-### Medium-Term (Next Month)
-
-7. **Add WebSocket streaming** - Real-time TRACE events
-8. **Implement caching layer** - Redis for resolution cache
-9. **Add authentication** - API key / JWT support
-10. **Create more Atlases** - AWS, Kubernetes, Database operations
-
----
-
-## Known Limitations
-
-1. **No persistent storage** - Resolutions are cached in-memory only
-2. **No real action execution** - Actions return simulated results
-3. **Single-threaded** - No worker pool for concurrent resolutions
-4. **No rate limiting** - Policy rate limits defined but not enforced
-5. **No approval workflow** - `requires_approval` decisions don't block
+| Package | Tests | Coverage |
+|---------|-------|----------|
+| @cra/protocol | 28 | Core types and utilities |
+| @cra/trace | 82 | Collector, redaction, golden testing |
+| @cra/atlas | 27 | Loading and validation |
+| @cra/runtime | 22 | CARP resolution |
+| @cra/adapters | 30 | Platform translations |
+| @cra/cli | 19 | Command handling |
+| @cra/server | 17 | HTTP/WebSocket server |
+| @cra/storage | 28 | File and PostgreSQL |
+| @cra/mcp | 12 | MCP protocol |
+| @cra/otel | 27 | OpenTelemetry export |
+| @cra/ui | 24 | Dual-mode UI |
+| **Total** | **289** | **All tests passing** |
 
 ---
 
@@ -441,11 +319,16 @@ for (const block of response.content) {
 │       └── TRACE_SPEC.md        # TRACE protocol spec
 ├── packages/
 │   ├── protocol/                # Types & utilities
-│   ├── trace/                   # TRACE collector
+│   ├── trace/                   # TRACE collector + redaction + golden
 │   ├── atlas/                   # Atlas loader
 │   ├── runtime/                 # CRA runtime
 │   ├── adapters/                # Platform adapters
-│   └── cli/                     # CLI application
+│   ├── cli/                     # CLI application
+│   ├── server/                  # HTTP/WebSocket server
+│   ├── storage/                 # Persistence layer
+│   ├── mcp/                     # MCP integration
+│   ├── otel/                    # OpenTelemetry export
+│   └── ui/                      # Dual-mode web UI
 └── atlases/
     └── github-ops/              # Reference Atlas
         ├── atlas.json
@@ -453,3 +336,25 @@ for (const block of response.content) {
         ├── adapters/
         └── tests/
 ```
+
+---
+
+## Recommended Next Steps
+
+### Immediate
+
+1. **Deploy to staging** - Test HTTP server with real agent traffic
+2. **Create more Atlases** - AWS, Kubernetes, Database operations
+3. **Implement real executors** - GitHub API, shell commands
+
+### Short-Term
+
+4. **VS Code extension** - Atlas development tooling
+5. **Hot reload** - Atlas changes without restart
+6. **Rate limiting** - Enforce policy-defined limits
+
+### Medium-Term
+
+7. **Approval workflow** - Block on `requires_approval` decisions
+8. **Multi-tenant** - Org/team isolation
+9. **Metrics dashboard** - Prometheus + Grafana

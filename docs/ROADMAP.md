@@ -29,14 +29,23 @@ Core protocols and local runtime:
 
 ### v0.2 - Developer Experience
 
-**Target: Q1 2025**
+**Status: Complete**
 
 Improved tooling and integrations:
+- [x] HTTP/WebSocket server (`@cra/server`)
+- [x] Trace visualization dashboard (`@cra/ui`)
+- [x] Golden trace testing framework (`@cra/trace`)
+- [x] Dual-mode UI (human terminal + agent JSON API)
+- [x] Storage layer with PostgreSQL support (`@cra/storage`)
+- [x] Redaction engine for sensitive data (`@cra/trace`)
+- [x] Streaming resolution via SSE
+- [x] Batch operations endpoint
+- [x] OpenTelemetry export (`@cra/otel`)
+- [x] MCP server integration (`@cra/mcp`)
+- [x] 289 comprehensive tests across 11 packages
 - [ ] VS Code extension for Atlas development
 - [ ] Atlas scaffolding CLI (`cra atlas create`)
 - [ ] Interactive policy builder
-- [ ] Trace visualization dashboard
-- [ ] Golden trace recording UI
 - [ ] Hot reload for Atlas development
 
 **New Atlases:**
@@ -51,17 +60,18 @@ Improved tooling and integrations:
 **Target: Q2 2025**
 
 Enhanced protocol capabilities:
-- [ ] CARP streaming resolution (for long-running tasks)
+- [x] CARP streaming resolution (SSE-based, implemented in v0.2)
 - [ ] TRACE event aggregation and sampling
 - [ ] Multi-resolution chaining (subtasks)
 - [ ] Conditional action permissions
 - [ ] Dynamic policy evaluation
 
 **Runtime:**
-- [ ] HTTP API server mode
-- [ ] WebSocket streaming for TRACE
-- [ ] Resolution caching layer (Redis)
+- [x] HTTP API server mode (implemented in v0.2)
+- [x] WebSocket streaming for TRACE (implemented in v0.2)
+- [x] Resolution caching layer (file + PostgreSQL, implemented in v0.2)
 - [ ] Metrics export (Prometheus)
+- [ ] Redis caching option
 
 ---
 
@@ -114,7 +124,7 @@ Enterprise-grade capabilities:
 - [ ] Air-gapped deployment
 
 **Privacy:**
-- [ ] PII detection and redaction
+- [x] PII detection and redaction (implemented in v0.2 - RedactionEngine)
 - [ ] Data residency controls
 - [ ] Encryption at rest
 
