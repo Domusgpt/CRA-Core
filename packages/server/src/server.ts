@@ -177,9 +177,199 @@ export class CRAServer {
     this.app.get('/health', (_req: Request, res: Response) => {
       res.json({
         status: 'healthy',
-        version: '0.1.0',
+        version: '0.2.0',
         uptime_ms: Date.now() - this.startTime.getTime(),
       });
+    });
+
+    // Agent Discovery Endpoint - THE key endpoint for agents
+    this.app.get('/v1/discover', (req: Request, res: Response) => {
+      const generate = req.query.generate as string;
+      const format = req.query.format as string ||
+        (req.headers.accept?.includes('text/markdown') ? 'markdown' : 'json');
+
+      const runtimeStats = this.runtime.getStats();
+
+      const discovery = {
+        system: {
+          name: 'CRA - Context Registry Agents',
+          version: '0.2.0',
+          purpose: 'Authority layer for agentic systems with context governance and telemetry',
+          one_liner: 'Ask CRA what you can do before doing it. TRACE everything.',
+        },
+
+        quick_start: {
+          step_1: 'POST /v1/resolve with your goal to get permitted actions',
+          step_2: 'Include returned context_blocks in your system prompt',
+          step_3: 'Only use actions from allowed_actions list',
+          step_4: 'POST /v1/execute when taking permitted actions',
+          step_5: 'Connect to WS /v1/trace for real-time telemetry',
+        },
+
+        integration: {
+          agents_md_snippet: `## CRA Integration
+
+Before any action:
+1. POST /v1/resolve with your goal
+2. Parse allowed_actions - ONLY use these
+3. Include context_blocks in your reasoning
+4. TRACE events are authoritative, not LLM narration
+
+Quick resolve:
+\`\`\`
+POST ${req.protocol}://${req.get('host')}/v1/resolve
+{"goal": "your task description"}
+\`\`\``,
+          recommended_system_prompt: 'You operate under CRA governance. Before any action, resolve context via /v1/resolve. Only use tools from allowed_actions. All operations are traced.',
+          update_frequency: 'Resolve once per task. Re-resolve if context changes or resolution expires.',
+        },
+
+        endpoints: {
+          discover: {
+            method: 'GET',
+            path: '/v1/discover',
+            purpose: 'Agent onboarding and system discovery (YOU ARE HERE)',
+            query_params: {
+              generate: 'agents-md | context | tools',
+              format: 'json | markdown',
+            },
+          },
+          resolve: {
+            method: 'POST',
+            path: '/v1/resolve',
+            purpose: 'Get context and permitted actions for a goal',
+            required_fields: ['goal'],
+            optional_fields: ['risk_tier', 'context_hints', 'scope'],
+            example_request: { goal: 'Create a GitHub issue for the bug', risk_tier: 'medium' },
+            returns: 'CARPResolution with context_blocks, allowed_actions, policies_applied',
+          },
+          execute: {
+            method: 'POST',
+            path: '/v1/execute',
+            purpose: 'Execute a permitted action',
+            required_fields: ['action_type', 'resolution_id'],
+            optional_fields: ['action_id', 'parameters'],
+            prerequisite: 'Must have valid resolution_id from /v1/resolve',
+          },
+          stream: {
+            method: 'WebSocket',
+            path: '/v1/stream',
+            purpose: 'Real-time streaming for resolution and actions',
+            message_types: ['resolution.started', 'context.chunk', 'actions.chunk', 'resolution.complete'],
+          },
+          trace: {
+            method: 'WebSocket',
+            path: '/v1/trace',
+            purpose: 'Real-time TRACE event streaming',
+            message_types: ['All TRACEEvent types'],
+          },
+          batch: {
+            method: 'POST',
+            path: '/v1/batch',
+            purpose: 'Batch multiple operations in one request',
+            max_operations: 100,
+          },
+        },
+
+        current_state: {
+          loaded_atlases: runtimeStats.atlases_loaded,
+          resolutions_total: runtimeStats.resolutions_total,
+          actions_executed: runtimeStats.actions_executed,
+          active_sessions: this.stats.active_sessions,
+          uptime_ms: runtimeStats.uptime_ms,
+        },
+
+        for_agents: {
+          output_formats: {
+            json: 'Default - structured, minimal tokens',
+            jsonl: 'Streaming - line-delimited JSON',
+            markdown: 'Human-readable with structure (use Accept: text/markdown)',
+          },
+          headers: {
+            'X-Agent-Id': 'Your agent identifier (for tracking)',
+            'X-Session-Id': 'Session identifier (for continuity)',
+            'X-Agent-Mode': 'Set to "true" for minimal response format',
+          },
+          response_envelope: {
+            _meta: 'Request metadata (timing, cache status)',
+            data: 'The actual response payload',
+            _agent_hints: 'Suggestions for next actions',
+          },
+          best_practices: [
+            'Cache resolution_id - valid for TTL seconds',
+            'Use WebSocket for long-running operations',
+            'Check allowed_actions before any tool use',
+            'Include context_blocks in your reasoning',
+          ],
+        },
+
+        urls: {
+          base: `${req.protocol}://${req.get('host')}`,
+          resolve: `${req.protocol}://${req.get('host')}/v1/resolve`,
+          execute: `${req.protocol}://${req.get('host')}/v1/execute`,
+          trace_ws: `ws://${req.get('host')}/v1/trace`,
+          stream_ws: `ws://${req.get('host')}/v1/stream`,
+          ui: `${req.protocol}://${req.get('host')}/ui`,
+        },
+      };
+
+      // Generate specific outputs
+      if (generate === 'agents-md') {
+        const agentsMd = this.generateAgentsMd(req);
+        if (format === 'markdown') {
+          res.type('text/markdown').send(agentsMd);
+        } else {
+          res.json({ agents_md: agentsMd });
+        }
+        return;
+      }
+
+      if (generate === 'context') {
+        res.json({
+          system_context: discovery.integration.recommended_system_prompt,
+          quick_reference: discovery.quick_start,
+          endpoints: Object.entries(discovery.endpoints).map(([name, info]) => ({
+            name,
+            ...info,
+          })),
+        });
+        return;
+      }
+
+      if (generate === 'tools') {
+        res.json({
+          tools: [
+            {
+              name: 'cra_resolve',
+              description: 'Resolve context and permitted actions for a goal before taking action',
+              parameters: {
+                type: 'object',
+                properties: {
+                  goal: { type: 'string', description: 'The task or goal to resolve' },
+                  risk_tier: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+                },
+                required: ['goal'],
+              },
+            },
+            {
+              name: 'cra_execute',
+              description: 'Execute a permitted action after resolution',
+              parameters: {
+                type: 'object',
+                properties: {
+                  action_type: { type: 'string', description: 'Action type from allowed_actions' },
+                  resolution_id: { type: 'string', description: 'Resolution ID from cra_resolve' },
+                  parameters: { type: 'object', description: 'Action-specific parameters' },
+                },
+                required: ['action_type', 'resolution_id'],
+              },
+            },
+          ],
+        });
+        return;
+      }
+
+      res.json(discovery);
     });
 
     // Statistics
@@ -469,6 +659,108 @@ export class CRAServer {
 
     // Shutdown runtime
     await this.runtime.shutdown();
+  }
+
+  /**
+   * Generate agents.md content for auto-configuration
+   */
+  private generateAgentsMd(req: Request): string {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const runtimeStats = this.runtime.getStats();
+
+    return `# agents.md — CRA Contract
+
+> Auto-generated by CRA at ${new Date().toISOString()}
+> Source: ${baseUrl}/v1/discover?generate=agents-md
+
+## Overview
+
+This project uses **CRA (Context Registry Agents)** for governance and telemetry.
+All AI agent operations must go through CRA for context resolution and action permission.
+
+## The Golden Rule
+
+**Never guess what tools to use. Always ask CRA first.**
+
+\`\`\`
+Before action → POST /v1/resolve → Get allowed_actions → Only use those
+\`\`\`
+
+## Integration
+
+### Step 1: Resolve Context
+Before any task, resolve what you're allowed to do:
+
+\`\`\`bash
+curl -X POST ${baseUrl}/v1/resolve \\
+  -H "Content-Type: application/json" \\
+  -d '{"goal": "your task description", "risk_tier": "medium"}'
+\`\`\`
+
+### Step 2: Parse Response
+The response contains:
+- \`context_blocks\`: Domain knowledge to include in your reasoning
+- \`allowed_actions\`: ONLY these tools are permitted
+- \`resolution_id\`: Required for execution
+- \`cache.ttl_seconds\`: How long this resolution is valid
+
+### Step 3: Execute Actions
+When ready to act, execute through CRA:
+
+\`\`\`bash
+curl -X POST ${baseUrl}/v1/execute \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "action_type": "api.github.create_issue",
+    "resolution_id": "res_xxx",
+    "parameters": {"title": "...", "body": "..."}
+  }'
+\`\`\`
+
+## Current State
+
+- **Loaded Atlases**: ${runtimeStats.atlases_loaded}
+- **Resolutions Processed**: ${runtimeStats.resolutions_total}
+- **Actions Executed**: ${runtimeStats.actions_executed}
+- **Server**: ${baseUrl}
+
+## Risk Tiers
+
+| Tier | Description | Approval |
+|------|-------------|----------|
+| low | Read-only, no side effects | Auto-approved |
+| medium | Modifications with undo | Auto-approved, logged |
+| high | Destructive, limited undo | May require approval |
+| critical | Irreversible | Always requires approval |
+
+## Real-Time Telemetry
+
+Connect to WebSocket for live trace events:
+\`\`\`javascript
+const ws = new WebSocket('${baseUrl.replace('http', 'ws')}/v1/trace');
+ws.onmessage = (e) => console.log(JSON.parse(e.data));
+\`\`\`
+
+## Important Notes
+
+1. **TRACE is authoritative** - The telemetry stream is the source of truth, not LLM narration
+2. **Resolution expires** - Check \`cache.ttl_seconds\` and re-resolve when needed
+3. **Context matters** - Always include \`context_blocks\` in your reasoning
+4. **Actions are typed** - Use exact \`action_type\` strings from \`allowed_actions\`
+
+## Quick Reference
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| /v1/discover | GET | System discovery (start here) |
+| /v1/resolve | POST | Get context and permissions |
+| /v1/execute | POST | Execute permitted action |
+| /v1/trace | WS | Real-time telemetry |
+| /v1/stream | WS | Streaming resolution |
+
+---
+*CRA v0.2.0 - Context Registry Agents*
+`;
   }
 
   /**
