@@ -1,0 +1,29 @@
+[package]
+name = "cra-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CRA HTTP Server - Dual-mode HTTP wrapper for cra-core"
+
+[[bin]]
+name = "cra-server"
+path = "src/main.rs"
+
+[lib]
+name = "cra_server"
+path = "src/lib.rs"
+
+[dependencies]
+cra-core = { path = "../cra-core" }
+axum = "0.7"
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[features]
+default = []
