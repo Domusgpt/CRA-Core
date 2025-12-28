@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cra.dev/schemas/carp-resolution.schema.json",
+  "title": "CARP Resolution",
+  "description": "Context & Action Resolution Protocol response object",
+  "type": "object",
+  "required": [
+    "carp_version",
+    "resolution_id",
+    "request_id",
+    "timestamp",
+    "decision",
+    "context_blocks",
+    "allowed_actions",
+    "denied_actions",
+    "constraints",
+    "ttl_seconds",
+    "trace_id"
+  ],
+  "properties": {
+    "carp_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "CARP protocol version"
+    },
+    "resolution_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUIDv7 unique to this resolution"
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Request ID this resolves"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
+    },
+    "decision": {
+      "$ref": "#/$defs/Decision"
+    },
+    "context_blocks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ContextBlock"
+      },
+      "description": "Context to inject into agent"
+    },
+    "allowed_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AllowedAction"
+      },
+      "description": "Actions the agent may execute"
+    },
+    "denied_actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DeniedAction"
+      },
+      "description": "Actions explicitly denied"
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Constraint"
+      },
+      "description": "Active constraints on execution"
+    },
+    "ttl_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 86400,
+      "description": "Resolution validity period"
+    },
+    "trace_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Trace ID for this resolution"
+    }
+  },
+  "$defs": {
+    "Decision": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["allow", "deny", "partial", "requires_approval"],
+          "description": "Decision outcome"
+        },
+        "reason": {
+          "type": ["string", "null"],
+          "description": "Human-readable reason"
+        },
+        "approval_id": {
+          "type": ["string", "null"],
+          "description": "ID for approval workflow"
+        },
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When this decision expires"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ContextBlock": {
+      "type": "object",
+      "required": ["block_id", "source", "content_type", "content", "priority"],
+      "properties": {
+        "block_id": {
+          "type": "string",
+          "description": "Unique block identifier"
+        },
+        "source": {
+          "type": "string",
+          "description": "Atlas ID that provided this block"
+        },
+        "content_type": {
+          "type": "string",
+          "enum": ["text/markdown", "text/plain", "application/json"],
+          "description": "MIME type of content"
+        },
+        "content": {
+          "type": "string",
+          "description": "The context content"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Ordering priority (higher = more important)"
+        },
+        "token_estimate": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Estimated token count"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional metadata"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AllowedAction": {
+      "type": "object",
+      "required": ["action_id", "name", "description"],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$",
+          "description": "Action identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What the action does"
+        },
+        "parameters_schema": {
+          "type": "object",
+          "description": "JSON Schema for parameters"
+        },
+        "returns_schema": {
+          "type": "object",
+          "description": "JSON Schema for return value"
+        },
+        "risk_tier": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "low"
+        },
+        "requires_confirmation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Requires user confirmation"
+        },
+        "idempotent": {
+          "type": "boolean",
+          "default": false,
+          "description": "Safe to retry"
+        },
+        "rate_limit": {
+          "$ref": "#/$defs/RateLimit"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DeniedAction": {
+      "type": "object",
+      "required": ["action_id", "reason"],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "description": "Denied action identifier"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why the action was denied"
+        },
+        "policy_id": {
+          "type": "string",
+          "description": "Policy that caused denial"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Constraint": {
+      "type": "object",
+      "required": ["constraint_id", "type"],
+      "properties": {
+        "constraint_id": {
+          "type": "string",
+          "description": "Constraint identifier"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["rate_limit", "budget", "time_window", "require_approval", "scope"],
+          "description": "Constraint type"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Constraint-specific parameters"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RateLimit": {
+      "type": "object",
+      "required": ["max_calls", "window_seconds"],
+      "properties": {
+        "max_calls": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum calls allowed"
+        },
+        "window_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Time window in seconds"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
