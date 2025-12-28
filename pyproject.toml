@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cra-core"
+version = "0.1.0"
+description = "Context Registry Agents reference runtime and CLI"
+authors = [{name = "CRA Core Team"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "typer==0.12.3",
+  "click==8.1.7",
+  "jsonschema==4.23.0"
+]
+
+[project.scripts]
+cra = "cra.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
