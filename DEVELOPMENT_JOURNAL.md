@@ -1089,4 +1089,87 @@ test error::tests::test_is_client_server_error ... ok
 
 ---
 
+## 15. Async Support Decision (2025-12-28)
+
+### Question: Should we add tokio/async support?
+
+### Analysis
+
+**Arguments FOR async:**
+1. Storage backends could benefit (database connections, HTTP fetches)
+2. Modern Rust best practice for I/O-bound code
+3. Better resource utilization under high concurrency
+
+**Arguments AGAINST async:**
+1. **Core operations are CPU-bound**: Resolution takes ~134µs, dominated by SHA-256 hashing. Async doesn't help CPU work.
+2. **FFI complexity**: Async across FFI boundaries is complex. Python/Node/WASM would need special handling.
+3. **Binary size**: Adding tokio increases binary from ~800KB to ~2MB.
+4. **Compile time**: tokio + dependencies significantly increase compile time.
+5. **Design philosophy**: The core should be minimal. Async belongs in wrappers.
+
+### Decision: DEFER async to optional feature/external crates
+
+The core remains synchronous. Async support is available through:
+
+1. **Thin async wrappers** (by users):
+   ```rust
+   async fn resolve_async(resolver: &Resolver, request: &CARPRequest) -> Result<Resolution> {
+       tokio::task::spawn_blocking(|| resolver.resolve(request)).await?
+   }
+   ```
+
+2. **Optional feature** (future):
+   ```toml
+   [features]
+   async = ["tokio"]
+   ```
+
+3. **Async storage backends** (separate crates):
+   - `cra-storage-postgres` - Uses sqlx async
+   - `cra-storage-redis` - Uses redis-rs async
+
+### Why This Is The Right Call
+
+| Concern | Solution |
+|---------|----------|
+| Database I/O | Use `spawn_blocking` or async storage crate |
+| High concurrency | Run multiple sync resolvers in thread pool |
+| Modern Rust | Async is *opt-in*, not mandatory |
+| Simple embeddings | No tokio runtime required for basic use |
+
+### Comparison to SQLite
+
+SQLite is synchronous. If you need async:
+- Use `spawn_blocking`
+- Use connection pools
+- Use a different database (Postgres)
+
+CRA follows the same model:
+- Core is synchronous (fast, simple, embeddable)
+- Async is achievable via wrappers
+- Complex async needs live in external crates
+
+### Summary
+
+**Total: 86 tests passing**
+
+The CRA Rust implementation is now feature-complete for the core functionality:
+
+| Feature | Status |
+|---------|--------|
+| CARP/1.0 Protocol | ✅ Complete |
+| TRACE/1.0 Protocol | ✅ Complete |
+| Atlas/1.0 Manifest | ✅ Complete |
+| Policy Evaluation | ✅ Complete |
+| Hash Chain Verification | ✅ Complete |
+| Conformance Tests | ✅ 7/7 passing |
+| Python Bindings | ✅ Complete |
+| Node.js Bindings | ✅ Scaffolded |
+| WASM Bindings | ✅ Scaffolded |
+| Storage Backends | ✅ 3 implementations |
+| Error Handling | ✅ Production-grade |
+| Async Support | ⏸️ Deferred (by design) |
+
+---
+
 *Journal continues as development progresses...*
