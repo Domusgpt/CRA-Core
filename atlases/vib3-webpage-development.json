@@ -1,23 +1,18 @@
 {
   "atlas_version": "1.0",
   "atlas_id": "dev.vib3.webpage-development",
-  "name": "VIB3+ Webpage Development Atlas",
-  "version": "1.0.0",
-  "description": "Context injection for building webpages with the VIB3+ 4D shader visualization engine",
+  "name": "VIB3+ Development Atlas",
+  "version": "3.0.0",
+  "description": "Context for building with the VIB3+ shader visualization system",
   "authors": ["CRA Development"],
   "license": "MIT",
-  "domains": ["webgl", "visualization", "4d", "shader"],
+  "domains": ["webgl", "visualization", "shader", "web-design"],
 
   "capabilities": [
     {
-      "capability_id": "vib3.webpage",
-      "name": "VIB3 Webpage Development",
-      "actions": ["vib3.create", "vib3.configure", "vib3.animate"]
-    },
-    {
-      "capability_id": "vib3.canvas",
-      "name": "Canvas Management",
-      "actions": ["vib3.canvas.create", "vib3.canvas.resize"]
+      "capability_id": "vib3.develop",
+      "name": "VIB3 Development",
+      "actions": ["vib3.embed", "vib3.customize", "vib3.build"]
     }
   ],
 
@@ -25,120 +20,87 @@
     {
       "context_id": "vib3-system-overview",
       "name": "VIB3+ System Overview",
-      "priority": 200,
-      "content": "# VIB3+ 4D Shader System\n\nVIB3+ is a WebGL-based 4D visualization engine with:\n- **3 Systems**: Faceted, Quantum, Holographic (+ Polychora for polytopes)\n- **24 Geometries**: 8 base shapes x 3 core warps\n- **6D Rotation**: XY, XZ, YZ (3D) + XW, YW, ZW (4D)\n- **5-Layer Canvas**: Background, Shadow, Content, Highlight, Accent\n- **Audio Reactivity**: Bass/Mid/High frequency mapping\n\n## Key Globals\n```javascript\nwindow.currentSystem = 'faceted';  // or 'quantum', 'holographic'\nwindow.userParameterState = { geometry: 0, gridDensity: 15, ... };\nwindow.updateParameter = function(name, value) { ... };\n```\n\n## Source Repos\n- Deployed: https://domusgpt.github.io/vib3-plus-engine/\n- SDK: https://github.com/Domusgpt/vib34d-vib3plus/",
+      "priority": 300,
+      "content": "# VIB3+ System Overview\n\nVIB3+ is a shader-based visualization system for creating animated backgrounds, artistic effects, and immersive web interfaces.\n\n## Two Main Repositories\n\n| Repo | Purpose | URL |\n|------|---------|-----|\n| **vib3-plus-engine** | Complete deployed app | https://github.com/Domusgpt/vib3-plus-engine |\n| **vib34d-vib3plus** | npm SDK for custom apps | https://github.com/Domusgpt/vib34d-vib3plus |\n\n## Live Application\nhttps://domusgpt.github.io/vib3-plus-engine/\n\n## Four Visualization Systems\n- **Faceted**: 2D geometric patterns\n- **Quantum**: 3D lattice/interference effects\n- **Holographic**: Audio-reactive dimensional blending\n- **Polychora**: Polytope-inspired complex patterns\n\n## 24 Geometries Per System\nFormula: `geometry = coreIndex * 8 + baseIndex`\n- Base (0-7): Tetrahedron, Hypercube, Sphere, Torus, Klein, Fractal, Wave, Crystal\n- Cores (0-2): Base, Hypersphere warp, Hypertetra warp",
       "content_type": "text/markdown",
-      "keywords": ["vib3", "shader", "4d", "visualization", "webgl", "canvas", "overview"],
+      "keywords": ["vib3", "overview", "what", "system", "visualization"],
       "inject_when": [],
       "risk_tiers": []
     },
 
     {
-      "context_id": "vib3-canvas-setup",
-      "name": "Canvas Layer Setup",
+      "context_id": "vib3-choose-approach",
+      "name": "Choose Your Approach",
+      "priority": 295,
+      "content": "# Choose Your VIB3+ Integration Approach\n\n## Task: Simple Embedding / Background\n**Use: Iframe with URL parameters**\n```html\n<iframe src=\"https://domusgpt.github.io/vib3-plus-engine/?system=faceted&geometry=1&hue=200\"></iframe>\n```\nNo code to write. Configure via URL. Done.\n\n## Task: Customize UI / Add Features\n**Use: Clone vib3-plus-engine**\n```bash\ngit clone https://github.com/Domusgpt/vib3-plus-engine\n```\nModify index.html directly. Everything is inline.\n\n## Task: Build Custom App / React / Vue / XR\n**Use: npm SDK**\n```bash\nnpm install vib34d-xr-quaternion-sdk\n```\nImport modules, build with your framework.\n\n## Decision Matrix\n| Need | Approach |\n|------|----------|\n| Just a background | Iframe |\n| Modify controls/UI | Clone repo |\n| React/Vue component | SDK |\n| XR/AR integration | SDK |\n| Mobile app | SDK (Flutter support) |",
+      "content_type": "text/markdown",
+      "keywords": ["approach", "choose", "how", "method", "integrate", "embed", "clone", "sdk"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-iframe-integration",
+      "name": "Iframe Integration",
+      "priority": 280,
+      "content": "# Iframe Integration\n\n## Basic Embed\n```html\n<iframe \n  src=\"https://domusgpt.github.io/vib3-plus-engine/?system=holographic&geometry=5\"\n  style=\"position: fixed; inset: 0; width: 100%; height: 100%; border: none; z-index: -1;\"\n  allow=\"accelerometer; autoplay; gyroscope\">\n</iframe>\n```\n\n## URL Parameters\n\n**System Selection:**\n`?system=faceted` | `quantum` | `holographic` | `polychora`\n\n**Geometry:**\n`&geometry=0` through `23`\n\n**Color:**\n`&hue=0-360` `&saturation=0-1` `&intensity=0-1`\n\n**Visual:**\n`&gridDensity=5-100` `&morphFactor=0-2` `&chaos=0-1` `&speed=0.1-3`\n\n**Rotation:**\n`&rot4dXW=value` `&rot4dYW=value` `&rot4dZW=value`\n\n## Complete Example\n```html\n<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { margin: 0; background: #000; }\n    .bg { position: fixed; inset: 0; z-index: -1; }\n    .bg iframe { width: 100%; height: 100%; border: none; }\n    .content { position: relative; z-index: 1; padding: 50px; color: #fff; }\n  </style>\n</head>\n<body>\n  <div class=\"bg\">\n    <iframe src=\"https://domusgpt.github.io/vib3-plus-engine/?system=holographic&geometry=3&hue=280&intensity=0.7\"></iframe>\n  </div>\n  <div class=\"content\">\n    <h1>Your Content</h1>\n  </div>\n</body>\n</html>\n```",
+      "content_type": "text/markdown",
+      "keywords": ["iframe", "embed", "url", "parameter", "simple", "background"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-app-architecture",
+      "name": "vib3-plus-engine Architecture",
       "priority": 250,
-      "content": "# CRITICAL: Canvas Setup\n\n## Required HTML Structure\n```html\n<div id=\"visualization-container\"\n     style=\"position: fixed; top: 0; left: 0;\n            width: 100vw; height: 100vh; overflow: hidden;\">\n</div>\n```\n\n## 5 Canvas Layers (REQUIRED)\nCreate ALL 5 layers with these exact IDs:\n```javascript\nconst layers = ['background', 'shadow', 'content', 'highlight', 'accent'];\nlayers.forEach((layer, i) => {\n    const canvas = document.createElement('canvas');\n    canvas.id = `${layer}-canvas`;\n    canvas.className = 'visualization-canvas';\n    canvas.style.cssText = `\n        position: absolute; top: 0; left: 0;\n        width: 100%; height: 100%; z-index: ${i + 1};\n    `;\n    container.appendChild(canvas);\n});\n```\n\n## Resize Handling (CRITICAL)\n```javascript\nfunction resize() {\n    const dpr = Math.min(window.devicePixelRatio || 1, 2);  // Cap at 2x!\n    document.querySelectorAll('.visualization-canvas').forEach(c => {\n        c.width = window.innerWidth * dpr;\n        c.height = window.innerHeight * dpr;\n    });\n}\nwindow.addEventListener('resize', resize);\nresize();  // Initial call\n```\n\n## Common Mistakes\n- Missing layers (need all 5)\n- Not capping DPR at 2x (kills mobile performance)\n- Forgetting initial resize call",
+      "content": "# vib3-plus-engine Architecture\n\n**Repo**: https://github.com/Domusgpt/vib3-plus-engine\n\nEverything is in index.html - a self-contained ~42KB application.\n\n## Module Stack (load order matters)\n\n**Phase 1 - Init:**\n- url-params.js - URL parameter handler\n- gallery-preview-fix.js\n\n**Phase 2 - Core:**\n- audio-engine.js\n- ui-handlers.js\n- gallery-manager.js, gallery-modal.js\n- bezel-tabs.js, geometry-tabs.js\n- device-tilt.js\n\n**Phase 3 - Enhancement:**\n- ui-fixes.js, geometric-icons.js\n- global-shortcuts.js\n- performance-optimizer.js\n- state-manager.js\n\n**Phase 4 - App:**\n- app.js (VIB34DApp class)\n\n## Engine Classes\n- VIB34DIntegratedEngine (faceted)\n- QuantumEngine\n- RealHolographicSystem\n- NewPolychoraEngine\n\n## Key Global Functions\n```javascript\nwindow.switchSystem(system)     // Change rendering system\nwindow.selectGeometry(index)    // Switch geometry (0-23)\nwindow.updateParameter(id, val) // Update any parameter\nwindow.randomizeAll()           // Randomize everything\nwindow.toggleAudio()            // Enable/disable audio\n```\n\n## Global State\n```javascript\nwindow.currentSystem       // 'faceted' | 'quantum' | 'holographic' | 'polychora'\nwindow.userParameterState  // All current parameter values\nwindow.moduleReady         // true when initialization complete\nwindow.geometries          // Geometry names per system\n```",
       "content_type": "text/markdown",
-      "keywords": ["canvas", "setup", "layer", "webgl", "container", "html", "create", "resize"],
+      "keywords": ["architecture", "structure", "module", "engine", "clone", "customize"],
       "inject_when": [],
       "risk_tiers": []
     },
 
     {
-      "context_id": "vib3-geometry-selection",
-      "name": "24-Geometry System",
-      "priority": 180,
-      "content": "# 24-Geometry Selection\n\n## Formula\n`geometry = coreIndex * 8 + baseIndex`\n\n## Base Shapes (0-7)\n| Index | Shape |\n|-------|-------|\n| 0 | Tetrahedron |\n| 1 | Hypercube (tesseract) |\n| 2 | Sphere |\n| 3 | Torus |\n| 4 | Klein Bottle |\n| 5 | Fractal |\n| 6 | Wave |\n| 7 | Crystal |\n\n## Core Warps (0-2)\n| Index | Warp | Geometry Range |\n|-------|------|----------------|\n| 0 | Base (none) | 0-7 |\n| 1 | Hypersphere | 8-15 |\n| 2 | Hypertetrahedron | 16-23 |\n\n## Usage\n```javascript\nfunction setGeometry(base, core = 0) {\n    window.updateParameter('geometry', core * 8 + base);\n}\n\nsetGeometry(1, 0);  // Hypercube, base\nsetGeometry(1, 1);  // Hypercube + hypersphere warp\nsetGeometry(4, 2);  // Klein bottle + hypertetrahedron\n```",
-      "content_type": "text/markdown",
-      "keywords": ["geometry", "shape", "tetrahedron", "hypercube", "tesseract", "sphere", "torus", "klein", "fractal", "wave", "crystal", "core", "warp"],
-      "inject_when": [],
-      "risk_tiers": []
-    },
-
-    {
-      "context_id": "vib3-rotation-control",
-      "name": "6D Rotation Control",
-      "priority": 190,
-      "content": "# 6D Rotation System\n\n## 3D Rotations (Standard Space)\n| Plane | Parameter | Range | Effect |\n|-------|-----------|-------|--------|\n| XY | `rot4dXY` | +/-3.14 | Compass heading |\n| XZ | `rot4dXZ` | +/-3.14 | Front-back tilt |\n| YZ | `rot4dYZ` | +/-3.14 | Left-right tilt |\n\n## 4D Rotations (Hyperspace)\n| Plane | Parameter | Range | Effect |\n|-------|-----------|-------|--------|\n| XW | `rot4dXW` | +/-6.28 | X into 4D |\n| YW | `rot4dYW` | +/-6.28 | Y into 4D |\n| ZW | `rot4dZW` | +/-6.28 | Z into 4D |\n\n## Animation Pattern\n```javascript\nfunction animate() {\n    const t = Date.now() * 0.001;\n    window.updateParameter('rot4dXW', Math.sin(t * 0.3) * 0.5);\n    window.updateParameter('rot4dYW', Math.cos(t * 0.4) * 0.5);\n    window.updateParameter('rot4dZW', Math.sin(t * 0.5) * 0.3);\n    requestAnimationFrame(animate);\n}\nanimate();\n```\n\n## Mouse Control\n```javascript\ndocument.addEventListener('mousemove', e => {\n    const x = e.clientX / window.innerWidth - 0.5;\n    const y = e.clientY / window.innerHeight - 0.5;\n    window.updateParameter('rot4dXW', x * Math.PI * 2);\n    window.updateParameter('rot4dYW', y * Math.PI * 2);\n});\n```",
-      "content_type": "text/markdown",
-      "keywords": ["rotation", "rotate", "4d", "6d", "xw", "yw", "zw", "xy", "xz", "yz", "animate", "spin"],
-      "inject_when": [],
-      "risk_tiers": []
-    },
-
-    {
-      "context_id": "vib3-parameters-reference",
-      "name": "Parameter Reference",
-      "priority": 170,
-      "content": "# VIB3+ Parameters\n\n## Visualization\n| Parameter | Range | Default | Description |\n|-----------|-------|---------|-------------|\n| `gridDensity` | 4-100 | 15 | Pattern frequency |\n| `morphFactor` | 0-2 | 1.0 | Shape distortion |\n| `chaos` | 0-1 | 0.2 | Random displacement |\n| `speed` | 0.1-3 | 1.0 | Animation rate |\n| `dimension` | 3.0-4.5 | 4.0 | 4D projection |\n\n## Color\n| Parameter | Range | Default | Description |\n|-----------|-------|---------|-------------|\n| `hue` | 0-360 | 200 | Base color (degrees) |\n| `saturation` | 0-1 | 0.8 | Color purity |\n| `intensity` | 0-1 | 0.5 | Brightness |\n\n## Setting Parameters\n```javascript\n// Single parameter\nwindow.updateParameter('hue', 280);\nwindow.updateParameter('gridDensity', 25);\n\n// Batch update\nObject.assign(window.userParameterState, {\n    hue: 280,\n    saturation: 0.9,\n    intensity: 0.7,\n    gridDensity: 25\n});\n```",
-      "content_type": "text/markdown",
-      "keywords": ["parameter", "config", "setting", "grid", "morph", "chaos", "speed", "hue", "color", "intensity", "saturation"],
-      "inject_when": [],
-      "risk_tiers": []
-    },
-
-    {
-      "context_id": "vib3-global-state",
-      "name": "Required Global State",
+      "context_id": "vib3-sdk-architecture",
+      "name": "SDK Architecture",
       "priority": 240,
-      "content": "# CRITICAL: Global State Setup\n\nThe VIB3+ engine reads from these window globals. Set them BEFORE loading the engine.\n\n## Required Globals\n```javascript\n// Active visualization system\nwindow.currentSystem = 'faceted';  // 'faceted' | 'quantum' | 'holographic' | 'polychora'\n\n// Parameter state object\nwindow.userParameterState = {\n    geometry: 0,\n    gridDensity: 15,\n    morphFactor: 1.0,\n    chaos: 0.2,\n    speed: 1.0,\n    hue: 200,\n    saturation: 0.8,\n    intensity: 0.5,\n    rot4dXY: 0, rot4dXZ: 0, rot4dYZ: 0,\n    rot4dXW: 0, rot4dYW: 0, rot4dZW: 0\n};\n\n// Module ready flag (triggers initialization)\nwindow.moduleReady = true;\n\n// Parameter update function\nwindow.updateParameter = function(name, value) {\n    window.userParameterState[name] = value;\n};\n\n// Optional: Interactivity\nwindow.interactivityEnabled = true;\n\n// Optional: Audio\nwindow.audioEnabled = false;\nwindow.audioReactive = { bass: 0, mid: 0, high: 0, energy: 0 };\n```\n\n## Initialization Order\n1. Set globals\n2. Create canvas container\n3. Load engine script\n4. Set `window.moduleReady = true`",
+      "content": "# vib34d-xr-quaternion-sdk Architecture\n\n**Repo**: https://github.com/Domusgpt/vib34d-vib3plus\n\n## Installation\n```bash\nnpm install vib34d-xr-quaternion-sdk\n```\n\n## Source Structure (src/)\n```\ncore/           # Main SDK (~180KB)\n  AdaptiveSDK.js          # Entry point\n  PolychoraSystem.js      # Central engine (40KB)\n  Visualizer.js           # Rendering (32KB)\n  ReactivityManager.js    # Input/state (29KB)\n  Parameters.js           # Config (15KB)\n  CanvasManager.js        # Canvas ops (7KB)\n  quaternions/            # 4D math\n\ngeometry/       # Shape calculations\nholograms/      # Holographic system\nmath/           # Math utilities\nphysics/        # Physics simulation\nquantum/        # Quantum system\nui/             # UI components\nvib3plus/       # Platform core\n```\n\n## Main Imports\n```javascript\nimport SDK from 'vib34d-xr-quaternion-sdk';\nimport { quaternionModule } from 'vib34d-xr-quaternion-sdk/quaternion';\nimport { polychoraModule } from 'vib34d-xr-quaternion-sdk/polychora';\nimport { sensorsModule } from 'vib34d-xr-quaternion-sdk/sensors';\n```\n\n## SDK vs Deployed App\n- SDK: Build custom apps, requires bundler\n- Deployed App: Use as-is, iframe or clone",
       "content_type": "text/markdown",
-      "keywords": ["window", "global", "state", "initialize", "init", "setup", "start"],
+      "keywords": ["sdk", "npm", "install", "import", "build", "react", "vue", "custom"],
       "inject_when": [],
       "risk_tiers": []
     },
 
     {
-      "context_id": "vib3-common-mistakes",
-      "name": "Common Mistakes to Avoid",
-      "priority": 220,
-      "content": "# Common VIB3+ Mistakes\n\n## 1. Missing Canvas Layers\n**Wrong**: Creating only 1 canvas\n**Right**: Create ALL 5 layers (background, shadow, content, highlight, accent)\n\n## 2. Device Pixel Ratio\n**Wrong**: `canvas.width = window.innerWidth * devicePixelRatio`\n**Right**: `canvas.width = window.innerWidth * Math.min(devicePixelRatio, 2)`\n\n## 3. Initialization Order\n**Wrong**: Load engine before setting globals\n**Right**: Set `window.userParameterState` etc. THEN load engine\n\n## 4. Parameter Updates\n**Wrong**: Direct assignment `window.userParameterState.hue = 200`\n**Right**: Use `window.updateParameter('hue', 200)` for reactivity\n\n## 5. Rotation Ranges\n**Wrong**: Using same range for 3D and 4D rotations\n**Right**: \n- 3D (XY, XZ, YZ): +/-3.14 radians\n- 4D (XW, YW, ZW): +/-6.28 radians\n\n## 6. Geometry Index\n**Wrong**: Random geometry index\n**Right**: `geometry = coreIndex * 8 + baseIndex` (0-23)\n\n## 7. Missing Resize Handler\n**Wrong**: Set canvas size once\n**Right**: Add resize listener AND call it initially\n\n## 8. WebGL Context\n**Wrong**: Assuming WebGL2 support\n**Right**: Try WebGL2, fallback to WebGL1",
+      "context_id": "vib3-parameters",
+      "name": "All Parameters",
+      "priority": 200,
+      "content": "# VIB3+ Parameters\n\n## 6D Rotation\n| Parameter | Range | Description |\n|-----------|-------|-------------|\n| rot4dXY | -6.28 to 6.28 | XY plane |\n| rot4dXZ | -6.28 to 6.28 | XZ plane |\n| rot4dYZ | -6.28 to 6.28 | YZ plane |\n| rot4dXW | -6.28 to 6.28 | XW plane (4D) |\n| rot4dYW | -6.28 to 6.28 | YW plane (4D) |\n| rot4dZW | -6.28 to 6.28 | ZW plane (4D) |\n\n## Visual\n| Parameter | Range | Default |\n|-----------|-------|--------|\n| gridDensity | 5-100 | 15 |\n| morphFactor | 0-2 | 1.0 |\n| chaos | 0-1 | 0.2 |\n| speed | 0.1-3 | 1.0 |\n\n## Color\n| Parameter | Range | Default |\n|-----------|-------|--------|\n| hue | 0-360 | 200 |\n| saturation | 0-1 | 0.8 |\n| intensity | 0-1 | 0.5 |\n\n## Geometry\n| Parameter | Range | Description |\n|-----------|-------|-------------|\n| geometry | 0-23 | coreIndex * 8 + baseIndex |\n\n## Base Shapes\n0=Tetrahedron, 1=Hypercube, 2=Sphere, 3=Torus, 4=Klein, 5=Fractal, 6=Wave, 7=Crystal\n\n## Core Modifiers\n0=Base (0-7), 1=Hypersphere (8-15), 2=Hypertetra (16-23)",
       "content_type": "text/markdown",
-      "keywords": ["error", "mistake", "bug", "wrong", "not working", "broken", "fix", "debug"],
+      "keywords": ["parameter", "rotation", "color", "hue", "geometry", "grid", "chaos"],
       "inject_when": [],
       "risk_tiers": []
     },
 
     {
-      "context_id": "vib3-minimal-example",
-      "name": "Minimal Working Example",
-      "priority": 260,
-      "content": "# Minimal VIB3+ Webpage\n\n```html\n<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>VIB3+ Visualization</title>\n    <style>\n        * { margin: 0; padding: 0; box-sizing: border-box; }\n        body { overflow: hidden; background: #000; }\n        #visualization-container {\n            position: fixed;\n            top: 0; left: 0;\n            width: 100vw; height: 100vh;\n        }\n        .visualization-canvas {\n            position: absolute;\n            top: 0; left: 0;\n            width: 100%; height: 100%;\n        }\n    </style>\n</head>\n<body>\n    <div id=\"visualization-container\"></div>\n    \n    <script>\n        // 1. Setup globals FIRST\n        window.currentSystem = 'faceted';\n        window.userParameterState = {\n            geometry: 1, gridDensity: 20, morphFactor: 1.0,\n            chaos: 0.15, speed: 1.0, hue: 240,\n            saturation: 0.85, intensity: 0.6,\n            rot4dXY: 0, rot4dXZ: 0, rot4dYZ: 0,\n            rot4dXW: 0, rot4dYW: 0, rot4dZW: 0\n        };\n        window.updateParameter = (n, v) => window.userParameterState[n] = v;\n        window.interactivityEnabled = true;\n        \n        // 2. Create canvas layers\n        const container = document.getElementById('visualization-container');\n        ['background','shadow','content','highlight','accent'].forEach((l,i) => {\n            const c = document.createElement('canvas');\n            c.id = l + '-canvas';\n            c.className = 'visualization-canvas';\n            c.style.zIndex = i + 1;\n            container.appendChild(c);\n        });\n        \n        // 3. Resize handler\n        function resize() {\n            const dpr = Math.min(devicePixelRatio || 1, 2);\n            document.querySelectorAll('.visualization-canvas').forEach(c => {\n                c.width = innerWidth * dpr;\n                c.height = innerHeight * dpr;\n            });\n        }\n        window.addEventListener('resize', resize);\n        resize();\n        \n        // 4. Mouse interaction\n        document.addEventListener('mousemove', e => {\n            const x = (e.clientX / innerWidth - 0.5) * 2;\n            const y = (e.clientY / innerHeight - 0.5) * 2;\n            window.updateParameter('rot4dXW', x * Math.PI);\n            window.updateParameter('rot4dYW', y * Math.PI);\n        });\n        \n        // 5. Signal ready\n        window.moduleReady = true;\n    </script>\n    \n    <!-- Load engine AFTER setup -->\n    <script src=\"vib3-engine.js\"></script>\n</body>\n</html>\n```",
+      "context_id": "vib3-audio-system",
+      "name": "Audio Reactivity",
+      "priority": 180,
+      "content": "# Audio Reactivity\n\nBest with `system=holographic`.\n\n## Frequency Bands\n| Band | Affects | Intensity |\n|------|---------|--------|\n| Bass | rot4dXW, Color | 3.0x |\n| Mid | rot4dYW, Geometry | 2.5x |\n| Treble | rot4dZW, Movement | 2.0x |\n\n## Sensitivity Levels\n- LOW: 30%\n- MED: 100%\n- HIGH: 200%\n\n## Enable via URL\n```\n?audioEnabled=true\n```\n\n## Enable via Code\n```javascript\nwindow.toggleAudio();\n```\n\n## Audio Matrix (UI)\nThe deployed app has a reactivity tab with toggles for:\n- Which frequency bands affect which parameters\n- Per-system audio mapping configuration",
       "content_type": "text/markdown",
-      "keywords": ["example", "minimal", "simple", "basic", "starter", "template", "boilerplate", "html", "webpage"],
+      "keywords": ["audio", "music", "reactive", "bass", "frequency", "sound"],
       "inject_when": [],
       "risk_tiers": []
     },
 
     {
-      "context_id": "vib3-polychora-special",
-      "name": "Polychora System (4D Polytopes)",
-      "priority": 130,
-      "content": "# Polychora System (4D Polytopes)\n\n## Available Polytopes\n| Index | Name | Cells |\n|-------|------|-------|\n| 0 | 5-Cell | 5 tetrahedral |\n| 1 | Tesseract | 8 cubic |\n| 2 | 16-Cell | 16 tetrahedral |\n| 3 | 24-Cell | 24 octahedral |\n| 4 | 600-Cell | 600 tetrahedral |\n| 5 | 120-Cell | 120 dodecahedral |\n\n## Selection\n```javascript\nwindow.currentSystem = 'polychora';\n// Use setPolytope() or uniform directly\nwindow.updateParameter('polytope', 1);  // Tesseract\n```\n\n## Glass Effect Parameters\n```javascript\n// Refraction\nwindow.updateParameter('refractionIndex', 1.5);\nwindow.updateParameter('chromaticAberration', 0.1);\n\n// Surface\nwindow.updateParameter('faceTransparency', 0.3);\nwindow.updateParameter('edgeThickness', 2.0);\n\n// Projection\nwindow.updateParameter('projectionDistance', 2.5);  // 1.0-5.0\n```",
-      "content_type": "text/markdown",
-      "keywords": ["polychora", "polytope", "4d", "tesseract", "5-cell", "16-cell", "24-cell", "600-cell", "120-cell"],
-      "inject_when": [],
-      "risk_tiers": []
-    },
-
-    {
-      "context_id": "vib3-audio-reactivity",
-      "name": "Audio Reactivity Setup",
-      "priority": 160,
-      "content": "# Audio Reactivity\n\n## Required Globals\n```javascript\nwindow.audioEnabled = true;\nwindow.audioReactive = {\n    bass: 0,    // 0-1, low frequencies\n    mid: 0,     // 0-1, mid frequencies  \n    high: 0,    // 0-1, high frequencies\n    energy: 0   // 0-1, overall intensity\n};\n```\n\n## Default Mappings\n| Frequency | Parameter | Multiplier |\n|-----------|-----------|------------|\n| Bass | rot4dXW | 3.0x |\n| Mid | rot4dYW | 2.5x |\n| Treble | rot4dZW | 2.0x |\n| Bass | hue | +/-60 degrees |\n\n## Web Audio API Integration\n```javascript\nconst audioCtx = new AudioContext();\nconst analyser = audioCtx.createAnalyser();\nconst data = new Uint8Array(analyser.frequencyBinCount);\n\nfunction updateAudio() {\n    analyser.getByteFrequencyData(data);\n    const bass = data.slice(0, 10).reduce((a,b) => a+b) / 2550;\n    const mid = data.slice(10, 100).reduce((a,b) => a+b) / 22950;\n    const high = data.slice(100, 200).reduce((a,b) => a+b) / 25500;\n    \n    window.audioReactive = { bass, mid, high, energy: (bass+mid+high)/3 };\n    requestAnimationFrame(updateAudio);\n}\n```",
-      "content_type": "text/markdown",
-      "keywords": ["audio", "music", "sound", "reactive", "bass", "frequency", "beat"],
-      "inject_when": [],
-      "risk_tiers": []
-    },
-
-    {
-      "context_id": "vib3-interactivity",
-      "name": "Mouse/Touch Interactivity",
+      "context_id": "vib3-documentation",
+      "name": "Documentation Locations",
       "priority": 150,
-      "content": "# Interactivity Modes\n\n## Mouse Movement\n| Mode | Parameters Affected |\n|------|---------------------|\n| Rotation | rot4dXW, rot4dYW, rot4dZW, hue |\n| Velocity | chaos, speed, gridDensity, intensity |\n| Distance | gridDensity, intensity, saturation |\n\n## Click Effects\n| Mode | Effect |\n|------|--------|\n| Burst | Color flash + chaos boost with decay |\n| Blast | Hue shift + wave effects |\n| Ripple | Morph geometry + distance intensity |\n\n## Scroll Effects\n| Mode | Effect |\n|------|--------|\n| Cycle | Grid density + hue rotation |\n| Wave | Morph factor increments |\n| Sweep | Cyclic parameter stepping |\n\n## Implementation\n```javascript\nwindow.interactivityEnabled = true;\n\n// Rotation mode\ndocument.addEventListener('mousemove', e => {\n    if (!window.interactivityEnabled) return;\n    const x = (e.clientX / window.innerWidth - 0.5) * 2;\n    const y = (e.clientY / window.innerHeight - 0.5) * 2;\n    window.updateParameter('rot4dXW', x * Math.PI);\n    window.updateParameter('rot4dYW', y * Math.PI);\n});\n\n// Click burst\ndocument.addEventListener('click', () => {\n    window.updateParameter('intensity', 1.0);\n    setTimeout(() => window.updateParameter('intensity', 0.5), 200);\n});\n```",
+      "content": "# VIB3+ Documentation\n\n## In vib3-plus-engine Repo\n- `CLAUDE.md` - Development context\n- `TESTING_GUIDE.md` - Testing procedures\n- `24-GEOMETRY-6D-ROTATION-SUMMARY.md` - Complete geometry/rotation docs\n- `REFERENCE_SYSTEM_ANALYSIS.md` - System architecture\n- `IMPROVEMENTS_SUMMARY.md` - Recent changes\n\n## In vib34d-vib3plus Repo (SDK)\n- `README.md` - Quick start\n- `QUICKSTART.md` - Minimal setup\n- `WEB_APP_GUIDE.md` - Web integration\n- `FLUTTER_WEB_GUIDE.md` - Flutter support\n- `DEVELOPER_GUIDE.md` - Full API reference\n- `DOCS/` folder - 20+ detailed guides\n\n## Key Files to Read First\n1. vib3-plus-engine/CLAUDE.md\n2. vib34d-vib3plus/QUICKSTART.md\n3. vib34d-vib3plus/WEB_APP_GUIDE.md",
       "content_type": "text/markdown",
-      "keywords": ["mouse", "click", "touch", "scroll", "interaction", "interactive", "input"],
+      "keywords": ["documentation", "docs", "guide", "reference", "help", "readme"],
       "inject_when": [],
       "risk_tiers": []
     }
