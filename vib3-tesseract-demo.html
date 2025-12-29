@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB3+ Hypercube Demo - CRA Context Injection Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #0a0a0f;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 20px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: #0ff;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .demo-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .demo-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(0, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .demo-card h2 {
+            padding: 15px 20px;
+            background: rgba(0, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .demo-card h2 .tag {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: normal;
+        }
+
+        .tag-faceted { background: rgba(0, 200, 255, 0.2); color: #0cf; }
+        .tag-quantum { background: rgba(200, 0, 255, 0.2); color: #c0f; }
+        .tag-holo { background: rgba(255, 100, 200, 0.2); color: #f9c; }
+        .tag-polychora { background: rgba(255, 200, 0, 0.2); color: #fc0; }
+
+        .iframe-wrapper {
+            position: relative;
+            width: 100%;
+            height: 400px;
+        }
+
+        .iframe-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .config-info {
+            padding: 15px 20px;
+            font-size: 0.8rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-top: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        .config-info code {
+            display: block;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.75rem;
+            color: #0f9;
+            word-break: break-all;
+        }
+
+        .explanation {
+            padding: 30px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .explanation h3 {
+            color: #0ff;
+            margin-bottom: 15px;
+        }
+
+        .explanation p {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .context-block {
+            background: rgba(0, 255, 255, 0.05);
+            border-left: 3px solid #0ff;
+            padding: 15px 20px;
+            margin: 20px 0;
+            font-size: 0.9rem;
+        }
+
+        .context-block strong {
+            color: #0ff;
+        }
+
+        @media (max-width: 900px) {
+            .demo-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>VIB3+ Integration Demo</h1>
+        <p class="subtitle">CRA Context Injection Test - Comparing visualization systems via URL parameters</p>
+    </header>
+
+    <div class="demo-container">
+        <!-- Faceted System - Hypercube geometry -->
+        <div class="demo-card">
+            <h2>
+                Hypercube Pattern
+                <span class="tag tag-faceted">FACETED</span>
+                <span class="tag">geometry=1</span>
+            </h2>
+            <div class="iframe-wrapper">
+                <iframe src="https://domusgpt.github.io/vib3-plus-engine/?system=faceted&geometry=1&gridDensity=25&hue=200&intensity=0.7&speed=1.2"
+                        loading="lazy"
+                        allow="accelerometer; autoplay; gyroscope">
+                </iframe>
+            </div>
+            <div class="config-info">
+                <strong>URL Parameters:</strong>
+                <code>?system=faceted&geometry=1&gridDensity=25&hue=200&intensity=0.7&speed=1.2</code>
+            </div>
+        </div>
+
+        <!-- Quantum System - Hypercube geometry -->
+        <div class="demo-card">
+            <h2>
+                Hypercube Lattice
+                <span class="tag tag-quantum">QUANTUM</span>
+                <span class="tag">geometry=1</span>
+            </h2>
+            <div class="iframe-wrapper">
+                <iframe src="https://domusgpt.github.io/vib3-plus-engine/?system=quantum&geometry=1&gridDensity=20&hue=280&intensity=0.6&morphFactor=1.5"
+                        loading="lazy"
+                        allow="accelerometer; autoplay; gyroscope">
+                </iframe>
+            </div>
+            <div class="config-info">
+                <strong>URL Parameters:</strong>
+                <code>?system=quantum&geometry=1&gridDensity=20&hue=280&intensity=0.6&morphFactor=1.5</code>
+            </div>
+        </div>
+
+        <!-- Holographic System -->
+        <div class="demo-card">
+            <h2>
+                Hypercube Holographic
+                <span class="tag tag-holo">HOLOGRAPHIC</span>
+                <span class="tag">geometry=1</span>
+            </h2>
+            <div class="iframe-wrapper">
+                <iframe src="https://domusgpt.github.io/vib3-plus-engine/?system=holographic&geometry=1&gridDensity=18&hue=320&saturation=0.9&chaos=0.3"
+                        loading="lazy"
+                        allow="accelerometer; autoplay; gyroscope">
+                </iframe>
+            </div>
+            <div class="config-info">
+                <strong>URL Parameters:</strong>
+                <code>?system=holographic&geometry=1&gridDensity=18&hue=320&saturation=0.9&chaos=0.3</code>
+            </div>
+        </div>
+
+        <!-- Polychora System - Tesseract -->
+        <div class="demo-card">
+            <h2>
+                4D Tesseract Polytope
+                <span class="tag tag-polychora">POLYCHORA</span>
+                <span class="tag">polytope=1</span>
+            </h2>
+            <div class="iframe-wrapper">
+                <iframe src="https://domusgpt.github.io/vib3-plus-engine/?system=polychora&geometry=1&gridDensity=15&hue=45&intensity=0.8"
+                        loading="lazy"
+                        allow="accelerometer; autoplay; gyroscope">
+                </iframe>
+            </div>
+            <div class="config-info">
+                <strong>URL Parameters:</strong>
+                <code>?system=polychora&geometry=1&gridDensity=15&hue=45&intensity=0.8</code>
+            </div>
+        </div>
+    </div>
+
+    <div class="explanation">
+        <h3>What This Demonstrates</h3>
+
+        <div class="context-block">
+            <strong>CRA Context Injection Result:</strong> An agent WITH the VIB3+ atlas understood that
+            VIB3+ creates shader-based topology visualizations controlled via URL parameters - NOT
+            literal 4D geometric shapes. The correct integration is embedding the deployed engine
+            with configuration parameters.
+        </div>
+
+        <p>
+            <strong>VIB3+ Systems:</strong> Each system (Faceted, Quantum, Holographic, Polychora)
+            interprets the same geometry index differently. Geometry=1 (Hypercube) produces different
+            visual patterns in each system - all controlled by the same 6D rotation parameters.
+        </p>
+
+        <p>
+            <strong>Key Insight:</strong> The CRA atlas should have included context about VIB3+ being
+            an embedded application rather than a library to include. This shows how domain-specific
+            knowledge in context blocks directly affects whether an agent can produce working code.
+        </p>
+
+        <h3>Correct Integration Pattern</h3>
+        <p>
+            VIB3+ is a complete application deployed at <code>https://domusgpt.github.io/vib3-plus-engine/</code>.
+            Integration happens via:
+        </p>
+        <ul style="color: rgba(255,255,255,0.7); margin-left: 20px; line-height: 2;">
+            <li>Iframe embedding with URL parameters for static configurations</li>
+            <li>postMessage API for dynamic parameter updates</li>
+            <li>The 24-geometry system: <code>geometry = coreIndex * 8 + baseIndex</code></li>
+            <li>6D rotation via rot4dXY, rot4dXZ, rot4dYZ (3D) + rot4dXW, rot4dYW, rot4dZW (4D)</li>
+        </ul>
+    </div>
+</body>
+</html>
