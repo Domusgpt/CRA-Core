@@ -377,4 +377,122 @@ mod tests {
         chain_b.pop();
         assert_eq!(ChainVerifier::find_divergence(&chain_a, &chain_b), Some(2));
     }
+
+    #[test]
+    fn test_multiple_events_chain_integrity() {
+        // Create a longer chain with multiple events to verify integrity
+        let session_id = "session-multi".to_string();
+        let trace_id = "trace-multi".to_string();
+
+        // Start with genesis event
+        let mut events = Vec::new();
+        let genesis = TRACEEvent::genesis(
+            session_id.clone(),
+            trace_id.clone(),
+            json!({"agent_id": "agent-multi", "goal": "test multiple events"}),
+        );
+        events.push(genesis);
+
+        // Add multiple events of different types to simulate a realistic session
+        let event_types = vec![
+            (
+                super::super::EventType::CARPRequestReceived,
+                json!({"request_id": "req-1", "operation": "resolve", "goal": "test"}),
+            ),
+            (
+                super::super::EventType::PolicyEvaluated,
+                json!({"policy_id": "policy-1", "action_id": "test.read", "result": "allow"}),
+            ),
+            (
+                super::super::EventType::ActionApproved,
+                json!({"action_id": "test.read", "request_id": "req-1"}),
+            ),
+            (
+                super::super::EventType::ActionExecuted,
+                json!({"action_id": "test.read", "execution_id": "exec-1", "duration_ms": 150}),
+            ),
+            (
+                super::super::EventType::CARPResolutionCompleted,
+                json!({"request_id": "req-1", "duration_ms": 200, "actions_allowed": 1}),
+            ),
+            (
+                super::super::EventType::ContextInjected,
+                json!({"context_id": "ctx-1", "block_count": 2}),
+            ),
+            (
+                super::super::EventType::ActionExecuted,
+                json!({"action_id": "test.write", "execution_id": "exec-2", "duration_ms": 300}),
+            ),
+            (
+                super::super::EventType::ActionExecuted,
+                json!({"action_id": "test.delete", "execution_id": "exec-3", "duration_ms": 100}),
+            ),
+            (
+                super::super::EventType::SessionEnded,
+                json!({"reason": "completed", "duration_ms": 5000, "total_actions": 3}),
+            ),
+        ];
+
+        // Build chain by linking each event to the previous one
+        for (i, (event_type, payload)) in event_types.into_iter().enumerate() {
+            let prev_hash = events.last().unwrap().event_hash.clone();
+            let sequence = (i + 1) as u64;
+
+            let event = TRACEEvent::new(
+                session_id.clone(),
+                trace_id.clone(),
+                event_type,
+                payload,
+            )
+            .chain(sequence, prev_hash);
+
+            events.push(event);
+        }
+
+        // Verify the entire chain is valid
+        let verification = ChainVerifier::verify(&events);
+        assert!(
+            verification.is_valid,
+            "Chain should be valid. Error: {:?} - {}",
+            verification.error_type,
+            verification.error_message.unwrap_or_default()
+        );
+        assert_eq!(verification.event_count, 10);
+
+        // Verify each event individually
+        for (i, event) in events.iter().enumerate() {
+            // Verify sequence numbers
+            assert_eq!(event.sequence, i as u64, "Event {} has wrong sequence", i);
+
+            // Verify hash integrity
+            assert!(
+                event.verify_hash(),
+                "Event {} hash mismatch: stored {}, computed {}",
+                i,
+                event.event_hash,
+                event.compute_hash()
+            );
+
+            // Verify chain linkage
+            if i == 0 {
+                assert_eq!(
+                    event.previous_event_hash, GENESIS_HASH,
+                    "First event should link to genesis"
+                );
+            } else {
+                assert_eq!(
+                    event.previous_event_hash,
+                    events[i - 1].event_hash,
+                    "Event {} should link to previous event",
+                    i
+                );
+            }
+        }
+
+        // Verify the last valid hash is set correctly
+        assert_eq!(
+            verification.last_valid_hash,
+            Some(events.last().unwrap().event_hash.clone())
+        );
+    }
 }
