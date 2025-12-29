@@ -192,6 +192,8 @@ pub enum EventType {
     ContextInjected,
     #[serde(rename = "context.redacted")]
     ContextRedacted,
+    #[serde(rename = "context.stale")]
+    ContextStale,
 
     // Error events
     #[serde(rename = "error.occurred")]
@@ -216,6 +218,7 @@ impl EventType {
             EventType::PolicyViolated => "policy.violated",
             EventType::ContextInjected => "context.injected",
             EventType::ContextRedacted => "context.redacted",
+            EventType::ContextStale => "context.stale",
             EventType::ErrorOccurred => "error.occurred",
         }
     }
@@ -273,6 +276,7 @@ impl std::str::FromStr for EventType {
             "policy.violated" => Ok(EventType::PolicyViolated),
             "context.injected" => Ok(EventType::ContextInjected),
             "context.redacted" => Ok(EventType::ContextRedacted),
+            "context.stale" => Ok(EventType::ContextStale),
             "error.occurred" => Ok(EventType::ErrorOccurred),
             _ => Err(format!("Unknown event type: {}", s)),
         }
@@ -292,6 +296,7 @@ pub enum EventPayload {
     ActionDenied(ActionDeniedPayload),
     ActionFailed(ActionFailedPayload),
     PolicyEvaluated(PolicyEvaluatedPayload),
+    ContextStale(ContextStalePayload),
     Generic(Value),
 }
 
@@ -385,6 +390,16 @@ pub struct PolicyEvaluatedPayload {
     pub evaluation_ms: Option<f64>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextStalePayload {
+    pub context_id: String,
+    pub reason: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_file: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_verified: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -475,5 +490,81 @@ mod tests {
             EventType::ActionExecuted
         );
         assert!("unknown.event".parse::<EventType>().is_err());
+    }
+
+    #[test]
+    fn test_context_stale_event() {
+        let payload = json!({
+            "context_id": "ctx-123",
+            "reason": "source_file_changed",
+            "source_file": "/path/to/file.rs",
+            "last_verified": "2025-12-29T10:00:00Z"
+        });
+
+        let event = TRACEEvent::new(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            EventType::ContextStale,
+            payload.clone(),
+        );
+
+        assert_eq!(event.session_id, "session-1");
+        assert!(matches!(event.event_type, EventType::ContextStale));
+        assert_eq!(event.payload, payload);
+    }
+
+    #[test]
+    fn test_context_stale_event_parsing() {
+        assert_eq!(
+            "context.stale".parse::<EventType>().unwrap(),
+            EventType::ContextStale
+        );
+        assert_eq!(EventType::ContextStale.as_str(), "context.stale");
+    }
+
+    #[test]
+    fn test_context_stale_event_hash() {
+        let payload = json!({
+            "context_id": "ctx-123",
+            "reason": "ttl_expired"
+        });
+
+        let event = TRACEEvent::genesis(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            payload,
+        );
+
+        let stale_event = TRACEEvent::new(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            EventType::ContextStale,
+            json!({
+                "context_id": "ctx-456",
+                "reason": "source_file_changed",
+                "source_file": "/updated/file.rs"
+            }),
+        )
+        .chain(1, event.event_hash.clone());
+
+        assert_eq!(stale_event.sequence, 1);
+        assert_eq!(stale_event.previous_event_hash, event.event_hash);
+        assert!(stale_event.verify_hash());
+    }
+
+    #[test]
+    fn test_context_stale_payload_serialization() {
+        let payload = ContextStalePayload {
+            context_id: "ctx-789".to_string(),
+            reason: "source_file_changed".to_string(),
+            source_file: Some("/path/to/changed.rs".to_string()),
+            last_verified: Some("2025-12-29T12:00:00Z".to_string()),
+        };
+
+        let json_value = serde_json::to_value(&payload).unwrap();
+        assert_eq!(json_value["context_id"], "ctx-789");
+        assert_eq!(json_value["reason"], "source_file_changed");
+        assert_eq!(json_value["source_file"], "/path/to/changed.rs");
+        assert_eq!(json_value["last_verified"], "2025-12-29T12:00:00Z");
     }
 }

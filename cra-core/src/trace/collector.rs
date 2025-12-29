@@ -815,4 +815,49 @@ mod tests {
         let events = collector.get_events("session-1").unwrap();
         assert_eq!(events.len(), 1);
     }
+
+    #[test]
+    fn test_emit_context_stale_event() {
+        let mut collector = TraceCollector::new();
+
+        // Start a session
+        collector
+            .emit(
+                "session-1",
+                EventType::SessionStarted,
+                json!({"agent_id": "agent-1", "goal": "test"}),
+            )
+            .unwrap();
+
+        // Emit a context.stale event
+        let stale_event = collector
+            .emit(
+                "session-1",
+                EventType::ContextStale,
+                json!({
+                    "context_id": "ctx-123",
+                    "reason": "source file modified",
+                    "source_file": "/path/to/changed.rs",
+                    "last_verified": "2025-12-29T10:00:00Z"
+                }),
+            )
+            .unwrap();
+
+        assert_eq!(stale_event.event_type, EventType::ContextStale);
+        assert_eq!(stale_event.sequence, 1);
+        assert_eq!(stale_event.payload["context_id"], "ctx-123");
+        assert_eq!(stale_event.payload["reason"], "source file modified");
+
+        // Verify the chain is intact
+        let verification = collector.verify_chain("session-1").unwrap();
+        assert!(verification.is_valid);
+        assert_eq!(verification.event_count, 2);
+
+        // Verify we can query for context.stale events
+        let context_events = collector
+            .get_events_by_type("session-1", EventType::ContextStale)
+            .unwrap();
+        assert_eq!(context_events.len(), 1);
+        assert_eq!(context_events[0].payload["context_id"], "ctx-123");
+    }
 }
