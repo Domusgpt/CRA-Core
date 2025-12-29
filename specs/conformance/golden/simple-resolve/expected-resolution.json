@@ -2,24 +2,15 @@
   "$comment": "Fields marked with $dynamic are ignored during comparison",
   "carp_version": "1.0",
   "resolution_id": "$dynamic",
-  "request_id": "00000000-0000-0000-0000-000000000001",
+  "request_id": "$dynamic",
   "timestamp": "$dynamic",
   "decision": {
-    "type": "allow",
-    "reason": null,
+    "type": "partial",
+    "reason": "Some actions are denied by policy",
     "approval_id": null,
     "expires_at": null
   },
-  "context_blocks": [
-    {
-      "block_id": "$dynamic",
-      "source": "com.cra.conformance.simple",
-      "content_type": "text/markdown",
-      "content": "$dynamic",
-      "priority": 100,
-      "token_estimate": "$dynamic"
-    }
-  ],
+  "context_blocks": [],
   "allowed_actions": [
     {
       "action_id": "resource.get",
