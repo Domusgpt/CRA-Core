@@ -1,0 +1,42 @@
+# CRA MCP Server Docker Image
+#
+# Self-documenting MCP server for governance-aware agents
+# Layer 2: Tool filtering and pre-flight checks
+
+FROM rust:1.75 AS builder
+
+WORKDIR /build
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY cra-core ./cra-core
+COPY cra-server ./cra-server
+COPY cra-mcp ./cra-mcp
+COPY cra-proxy ./cra-proxy
+COPY cra-python ./cra-python
+COPY cra-node ./cra-node
+COPY cra-wasm ./cra-wasm
+
+# Build release binary
+RUN cargo build --release -p cra-mcp
+
+# Runtime image
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /build/target/release/cra-mcp /usr/local/bin/cra-mcp
+
+# Create atlas directory
+RUN mkdir -p /atlases
+
+ENV CRA_MCP_PORT=8421
+ENV CRA_ATLAS_DIR=/atlases
+ENV RUST_LOG=info
+
+EXPOSE 8421
+
+CMD ["cra-mcp"]

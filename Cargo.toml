@@ -4,6 +4,7 @@ members = [
     "cra-core",
     "cra-server",
     "cra-proxy",
+    "cra-mcp",
     "cra-python",
     "cra-node",
     "cra-wasm",

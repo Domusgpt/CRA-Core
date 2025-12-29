@@ -2,15 +2,21 @@ version: '3.8'
 
 # CRA + MINOOTS Integration Demo
 #
-# This Compose file provides the CRA side of the integration.
-# MINOOTS services should be added or run separately.
+# This Compose file provides all three layers of CRA governance:
+#   - Layer 1: Context Injection (via atlases)
+#   - Layer 2: MCP Server (tool filtering, pre-flight checks)
+#   - Layer 3: Webhook Proxy (hard network-level enforcement)
 #
 # Usage:
 #   docker-compose up -d
-#   # CRA server available at http://localhost:8420
+#   # CRA server: http://localhost:8420
+#   # CRA MCP:    localhost:8421 (stdio over TCP)
+#   # CRA Proxy:  http://localhost:8422
 
 services:
-  # CRA Server - Governance layer
+  # ─────────────────────────────────────────────────────────────────────────
+  # Layer 1 + Core: CRA Server with Atlas loading
+  # ─────────────────────────────────────────────────────────────────────────
   cra-server:
     build:
       context: ../..
@@ -30,6 +36,53 @@ services:
       retries: 3
     networks:
       - cra-minoots
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Layer 2: Self-Documenting MCP Server
+  # ─────────────────────────────────────────────────────────────────────────
+  cra-mcp:
+    build:
+      context: ../..
+      dockerfile: examples/minoots-integration/Dockerfile.cra-mcp
+    ports:
+      - "8421:8421"
+    environment:
+      - CRA_MCP_PORT=8421
+      - CRA_ATLAS_DIR=/atlases
+      - RUST_LOG=info,cra_mcp=debug
+    volumes:
+      - ./atlases:/atlases:ro
+    depends_on:
+      cra-server:
+        condition: service_healthy
+    networks:
+      - cra-minoots
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Layer 3: Webhook Proxy Gateway (Hard Enforcement)
+  # ─────────────────────────────────────────────────────────────────────────
+  cra-proxy:
+    build:
+      context: ../..
+      dockerfile: examples/minoots-integration/Dockerfile.cra-proxy
+    ports:
+      - "8422:8422"
+    environment:
+      - CRA_PROXY_PORT=8422
+      - CRA_SERVER_URL=http://cra-server:8420
+      - RUST_LOG=info,cra_proxy=debug
+      # Security: Block internal networks by default
+      - CRA_BLOCK_INTERNAL=true
+      - CRA_BLOCK_METADATA=true
+    depends_on:
+      cra-server:
+        condition: service_healthy
+    networks:
+      - cra-minoots
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Test Services
+  # ─────────────────────────────────────────────────────────────────────────
 
   # Webhook test server (for demo purposes)
   webhook-receiver:
@@ -58,11 +111,26 @@ services:
     networks:
       - cra-minoots
 
+  # Internal service (for SSRF testing - proxy should block this)
+  internal-service:
+    image: nginx:alpine
+    # No external port mapping - only accessible internally
+    networks:
+      cra-minoots:
+        ipv4_address: 192.168.100.100
+
 networks:
   cra-minoots:
     name: cra-minoots-network
     driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
 
+# ─────────────────────────────────────────────────────────────────────────
+# Integration Notes
+# ─────────────────────────────────────────────────────────────────────────
+#
 # For full integration, MINOOTS services connect to this network:
 #
 # # In MINOOTS docker-compose.yml, add:
@@ -75,6 +143,8 @@ networks:
 # action-orchestrator:
 #   environment:
 #     - CRA_ENDPOINT=http://cra-server:8420
+#     - CRA_MCP_ENDPOINT=http://cra-mcp:8421
+#     - CRA_PROXY=http://cra-proxy:8422
 #     - CRA_ENABLED=true
 #   networks:
 #     - cra-minoots

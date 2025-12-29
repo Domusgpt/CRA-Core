@@ -1,0 +1,28 @@
+[package]
+name = "cra-mcp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CRA MCP Server - Self-documenting governance for AI agents"
+
+[[bin]]
+name = "cra-mcp"
+path = "src/main.rs"
+
+[lib]
+name = "cra_mcp"
+path = "src/lib.rs"
+
+[dependencies]
+cra-core = { path = "../cra-core" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+async-trait = "0.1"
+
+[features]
+default = []

@@ -1,0 +1,41 @@
+# CRA Proxy Docker Image
+#
+# Hard enforcement webhook proxy gateway
+# Layer 3: Network-level policy enforcement
+
+FROM rust:1.75 AS builder
+
+WORKDIR /build
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY cra-core ./cra-core
+COPY cra-server ./cra-server
+COPY cra-mcp ./cra-mcp
+COPY cra-proxy ./cra-proxy
+COPY cra-python ./cra-python
+COPY cra-node ./cra-node
+COPY cra-wasm ./cra-wasm
+
+# Build release binary
+RUN cargo build --release -p cra-proxy
+
+# Runtime image
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /build/target/release/cra-proxy /usr/local/bin/cra-proxy
+
+ENV CRA_PROXY_PORT=8422
+ENV CRA_SERVER_URL=http://cra-server:8420
+ENV CRA_BLOCK_INTERNAL=true
+ENV CRA_BLOCK_METADATA=true
+ENV RUST_LOG=info
+
+EXPOSE 8422
+
+CMD ["cra-proxy"]

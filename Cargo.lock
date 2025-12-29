@@ -400,6 +400,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cra-mcp"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cra-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "cra-node"
 version = "0.1.0"
 dependencies = [
