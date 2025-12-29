@@ -66,11 +66,12 @@ impl LoadedContext {
     pub fn to_context_block(&self) -> ContextBlock {
         ContextBlock::new(
             self.pack_id.clone(),
-            self.source.as_string(),
-            self.content_type.clone(),
+            self.pack_id.clone(), // name = pack_id for now
             self.content.clone(),
-            self.priority,
         )
+        .with_priority(self.priority)
+        .with_content_type(self.content_type.clone())
+        .with_source_atlas(self.source.as_string())
     }
 }
 
@@ -407,7 +408,7 @@ mod tests {
 
         let block = context.to_context_block();
         assert_eq!(block.block_id, "test");
-        assert_eq!(block.source, "com.test");
+        assert_eq!(block.source_atlas, "com.test");
         assert_eq!(block.content, "Test content");
         assert_eq!(block.priority, 50);
     }

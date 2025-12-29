@@ -14,11 +14,12 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::atlas::{AtlasAction, AtlasManifest};
+use crate::context::{ContextRegistry, ContextMatcher, LoadedContext, ContextSource};
 use crate::error::{CRAError, Result};
 use crate::trace::{DeferredConfig, EventType, TraceCollector, TRACEEvent};
 
 use super::{
-    AllowedAction, CARPRequest, CARPResolution, Constraint, Decision, DeniedAction,
+    AllowedAction, CARPRequest, CARPResolution, ContextBlock, Constraint, Decision, DeniedAction,
     PolicyEvaluator, PolicyResult,
 };
 
@@ -85,6 +86,12 @@ pub struct Resolver {
     /// Policy evaluator
     policy_evaluator: PolicyEvaluator,
 
+    /// Context registry for context injection
+    context_registry: ContextRegistry,
+
+    /// Context matcher for evaluating conditions
+    context_matcher: ContextMatcher,
+
     /// TRACE collector for audit events
     trace_collector: TraceCollector,
 
@@ -99,6 +106,8 @@ impl Resolver {
             atlases: HashMap::new(),
             sessions: HashMap::new(),
             policy_evaluator: PolicyEvaluator::new(),
+            context_registry: ContextRegistry::new(),
+            context_matcher: ContextMatcher::new(),
             trace_collector: TraceCollector::new(),
             default_ttl: 300, // 5 minutes
         }
@@ -173,6 +182,39 @@ impl Resolver {
 
         // Add policies from the atlas to the evaluator
         self.policy_evaluator.add_policies(atlas.policies.clone());
+
+        // Load inline context_blocks into the registry
+        for block in &atlas.context_blocks {
+            // Build conditions from block fields
+            let conditions = if block.inject_when.is_empty()
+                && block.keywords.is_empty()
+                && block.risk_tiers.is_empty()
+            {
+                None
+            } else {
+                Some(serde_json::json!({
+                    "inject_when": block.inject_when,
+                    "keywords": block.keywords,
+                    "risk_tiers": block.risk_tiers,
+                }))
+            };
+
+            let loaded = LoadedContext {
+                pack_id: block.context_id.clone(),
+                source: ContextSource::Atlas(atlas_id.clone()),
+                content: block.content.clone(),
+                content_type: block.content_type.clone(),
+                priority: block.priority,
+                keywords: block.keywords.clone(),
+                conditions,
+            };
+
+            self.context_registry.add_context(loaded);
+        }
+
+        // Load file-based context_packs (placeholder - would need file loader)
+        // For now, context_packs with files are not loaded automatically
+        // In production, you'd use ContextRegistry::load_from_pack() with a file loader
 
         self.atlases.insert(atlas_id.clone(), atlas);
         Ok(atlas_id)
@@ -388,13 +430,51 @@ impl Resolver {
         // Update session stats
         session.resolution_count += 1;
 
-        // Build resolution
+        // Query context registry for matching context based on goal
+        let context_hints: Vec<String> = request.context_hints.clone().unwrap_or_default();
+        let matching_contexts = self.context_registry.query(&request.goal, None);
+
+        // Convert matching context to ContextBlocks and emit TRACE events
+        let mut context_blocks: Vec<ContextBlock> = Vec::new();
+        for ctx in matching_contexts {
+            // Evaluate conditions with the matcher for fine-grained matching
+            let match_result = self.context_matcher.evaluate(
+                ctx.conditions.as_ref(),
+                &request.goal,
+                None, // TODO: Parse risk tier from request if provided
+                &context_hints,
+                ctx.priority,
+            );
+
+            if match_result.matched {
+                let block = ctx.to_context_block();
+
+                // Emit context.injected TRACE event
+                self.trace_collector.emit(
+                    &request.session_id,
+                    EventType::ContextInjected,
+                    serde_json::json!({
+                        "context_id": block.block_id,
+                        "source_atlas": block.source_atlas,
+                        "priority": block.priority,
+                        "content_type": block.content_type,
+                        "token_estimate": ctx.token_estimate(),
+                        "match_score": match_result.score.total(),
+                    }),
+                )?;
+
+                context_blocks.push(block);
+            }
+        }
+
+        // Build resolution with injected context
         let resolution = CARPResolution::builder(request.session_id.clone())
             .trace_id(trace_id.clone())
             .decision(decision)
             .allowed_actions(allowed_actions.clone())
             .denied_actions(denied_actions.clone())
             .constraints(constraints)
+            .context_blocks(context_blocks.clone())
             .ttl_seconds(self.default_ttl)
             .build();
 
@@ -407,6 +487,7 @@ impl Resolver {
                 "decision_type": resolution.decision.to_string(),
                 "allowed_count": allowed_actions.len(),
                 "denied_count": denied_actions.len(),
+                "context_count": context_blocks.len(),
                 "ttl_seconds": self.default_ttl,
             }),
         )?;
@@ -708,5 +789,89 @@ mod tests {
         // Trying to end again should fail
         let result = resolver.end_session(&session_id);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_context_injection() {
+        use crate::atlas::AtlasContextBlock;
+
+        // Create an atlas with context_blocks
+        let mut atlas: AtlasManifest = serde_json::from_value(json!({
+            "atlas_version": "1.0",
+            "atlas_id": "com.test.context",
+            "version": "1.0.0",
+            "name": "Context Test Atlas",
+            "description": "Atlas for testing context injection",
+            "domains": ["test"],
+            "capabilities": [],
+            "policies": [],
+            "actions": [
+                {
+                    "action_id": "test.action",
+                    "name": "Test Action",
+                    "description": "A test action",
+                    "parameters_schema": { "type": "object" },
+                    "risk_tier": "low"
+                }
+            ]
+        }))
+        .unwrap();
+
+        // Add inline context_blocks
+        atlas.context_blocks = vec![
+            AtlasContextBlock {
+                context_id: "hash-rules".to_string(),
+                name: "Hash Computation Rules".to_string(),
+                priority: 100,
+                content: "CRITICAL: Use TRACEEvent::compute_hash()".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_when: vec![],
+                keywords: vec!["hash".to_string(), "trace".to_string()],
+                risk_tiers: vec![],
+            },
+            AtlasContextBlock {
+                context_id: "test-rules".to_string(),
+                name: "Testing Rules".to_string(),
+                priority: 50,
+                content: "Always run cargo test before committing".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_when: vec![],
+                keywords: vec!["test".to_string(), "testing".to_string()],
+                risk_tiers: vec![],
+            },
+        ];
+
+        let mut resolver = Resolver::new();
+        resolver.load_atlas(atlas).unwrap();
+
+        let session_id = resolver.create_session("test-agent", "Test context").unwrap();
+
+        // Resolve with goal that matches "hash" keyword
+        let request = CARPRequest::new(
+            session_id.clone(),
+            "test-agent".to_string(),
+            "Working on hash chain implementation".to_string(),
+        );
+        let resolution = resolver.resolve(&request).unwrap();
+
+        // Should have injected hash-rules context
+        assert!(!resolution.context_blocks.is_empty(), "Should have injected context");
+        assert!(
+            resolution.context_blocks.iter().any(|b| b.block_id == "hash-rules"),
+            "Should have hash-rules context block"
+        );
+
+        // Verify the content
+        let hash_block = resolution.context_blocks.iter()
+            .find(|b| b.block_id == "hash-rules")
+            .unwrap();
+        assert!(hash_block.content.contains("compute_hash"));
+
+        // Verify trace includes context.injected event
+        let trace = resolver.get_trace(&session_id).unwrap();
+        let context_events: Vec<_> = trace.iter()
+            .filter(|e| e.event_type == crate::trace::EventType::ContextInjected)
+            .collect();
+        assert!(!context_events.is_empty(), "Should have context.injected trace events");
     }
 }

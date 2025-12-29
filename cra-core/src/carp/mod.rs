@@ -25,7 +25,7 @@ mod resolution;
 mod policy;
 mod resolver;
 
-pub use request::CARPRequest;
+pub use request::{CARPRequest, RiskTier};
 pub use resolution::{CARPResolution, Decision, AllowedAction, DeniedAction, Constraint, ConstraintType, ContextBlock};
 pub use policy::{PolicyEvaluator, PolicyResult};
 pub use resolver::Resolver;

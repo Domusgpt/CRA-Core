@@ -41,9 +41,13 @@ pub struct AtlasManifest {
     #[serde(default)]
     pub capabilities: Vec<AtlasCapability>,
 
-    /// Context packs
+    /// Context packs (file-based)
     #[serde(default)]
     pub context_packs: Vec<AtlasContextPack>,
+
+    /// Inline context blocks (content in manifest)
+    #[serde(default)]
+    pub context_blocks: Vec<AtlasContextBlock>,
 
     /// Policy definitions
     #[serde(default)]
@@ -174,6 +178,7 @@ impl AtlasManifestBuilder {
                 domains: vec![],
                 capabilities: vec![],
                 context_packs: vec![],
+                context_blocks: vec![],
                 policies: vec![],
                 actions: vec![],
                 dependencies: None,
@@ -261,7 +266,7 @@ impl AtlasCapability {
     }
 }
 
-/// A context pack containing related content
+/// A context pack containing related content (file-based)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtlasContextPack {
     /// Unique identifier for this pack
@@ -280,6 +285,43 @@ pub struct AtlasContextPack {
     /// Conditions for when to include this pack
     #[serde(skip_serializing_if = "Option::is_none")]
     pub conditions: Option<Value>,
+}
+
+/// An inline context block with content directly in the manifest
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AtlasContextBlock {
+    /// Unique identifier for this context
+    pub context_id: String,
+
+    /// Human-readable name
+    pub name: String,
+
+    /// Priority for ordering (higher = earlier injection)
+    #[serde(default)]
+    pub priority: i32,
+
+    /// The actual content to inject
+    pub content: String,
+
+    /// Content type (defaults to text/markdown)
+    #[serde(default = "default_content_type")]
+    pub content_type: String,
+
+    /// Action patterns that trigger injection
+    #[serde(default)]
+    pub inject_when: Vec<String>,
+
+    /// Keyword conditions for matching
+    #[serde(default)]
+    pub keywords: Vec<String>,
+
+    /// Risk tiers this applies to
+    #[serde(default)]
+    pub risk_tiers: Vec<String>,
+}
+
+fn default_content_type() -> String {
+    "text/markdown".to_string()
 }
 
 /// A policy definition

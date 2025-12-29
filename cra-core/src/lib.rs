@@ -62,6 +62,7 @@
 pub mod carp;
 pub mod trace;
 pub mod atlas;
+pub mod context;
 pub mod error;
 pub mod storage;
 pub mod timing;
@@ -75,7 +76,10 @@ pub mod runtime;
 // Re-export main types
 pub use carp::{
     CARPRequest, CARPResolution, Decision, AllowedAction, DeniedAction,
-    Constraint, Resolver,
+    Constraint, Resolver, RiskTier, ContextBlock,
+};
+pub use context::{
+    ContextRegistry, LoadedContext, ContextSource, ContextMatcher,
 };
 pub use trace::{
     TRACEEvent, EventType, TraceCollector, ChainVerification, ReplayResult,

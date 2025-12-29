@@ -27,7 +27,7 @@ mod registry;
 mod matcher;
 
 pub use registry::{ContextRegistry, LoadedContext, ContextSource};
-pub use matcher::{ContextMatcher, MatchResult, MatchScore};
+pub use matcher::{ContextMatcher, MatchResult, MatchScore, ConditionBuilder};
 
 #[cfg(test)]
 mod tests {

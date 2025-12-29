@@ -15,7 +15,7 @@ mod validator;
 
 pub use manifest::{
     AtlasManifest, AtlasAction, AtlasPolicy, AtlasCapability, AtlasContextPack,
-    PolicyType, RiskTier,
+    AtlasContextBlock, PolicyType, RiskTier,
 };
 pub use loader::AtlasLoader;
 pub use validator::AtlasValidator;
@@ -41,6 +41,7 @@ mod tests {
             domains: vec!["test".to_string()],
             capabilities: vec![],
             context_packs: vec![],
+            context_blocks: vec![],
             policies: vec![],
             actions: vec![],
             dependencies: None,

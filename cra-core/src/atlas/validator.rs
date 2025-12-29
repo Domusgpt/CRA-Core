@@ -544,6 +544,7 @@ mod tests {
             domains: vec![],
             capabilities: vec![],
             context_packs: vec![],
+            context_blocks: vec![],
             policies: vec![],
             actions: vec![],
             dependencies: None,
