@@ -1,0 +1,110 @@
+{
+  "atlas_version": "1.0",
+  "atlas_id": "com.minoots.governance-context",
+  "version": "1.0.0",
+  "name": "MINOOTS Governance (Context Injection)",
+  "description": "Governance via context injection - rules the LLM reads and follows",
+  "domains": ["minoots", "timers", "governance"],
+
+  "context_blocks": [
+    {
+      "block_id": "minoots-core-rules",
+      "title": "MINOOTS Timer Governance Rules",
+      "priority": 100,
+      "content_type": "text/markdown",
+      "content": "## Timer Governance Rules\n\nYou are operating within a governed environment. Follow these rules:\n\n### PROHIBITED Actions\n- **No external webhooks without confirmation**: Always ask user before scheduling webhooks to external URLs (anything not localhost/127.0.0.1)\n- **No dangerous CLI commands**: Never use `rm -rf`, `sudo`, `chmod 777`, `curl | sh`, or similar destructive patterns\n- **No rapid-fire timers**: Maximum 10 timers per conversation, minimum 1 minute between timer creations\n\n### REQUIRED Practices\n- **State your intent**: Before creating a timer, explain what it will do and why\n- **Include metadata**: Every timer must have a `reason` in metadata\n- **Prefer safe defaults**: Use localhost webhooks for testing, short durations for experiments\n- **Confirm high-risk actions**: CLI commands and external webhooks require explicit user approval\n\n### Timer Duration Limits\n- Minimum: 10 seconds\n- Maximum: 168 hours (1 week)\n- Default: 1 hour if not specified"
+    },
+    {
+      "block_id": "minoots-action-templates",
+      "title": "Approved Timer Action Patterns",
+      "priority": 90,
+      "content_type": "text/markdown",
+      "content": "## Approved Timer Patterns\n\n### Safe Webhook Patterns\n```json\n{\n  \"type\": \"webhook\",\n  \"url\": \"http://localhost:3000/callback\",\n  \"method\": \"POST\"\n}\n```\n\n### Safe CLI Patterns\n```json\n{\n  \"type\": \"cli\",\n  \"command\": \"echo 'Timer fired'\",\n  \"timeout_seconds\": 30\n}\n```\n\n### Safe File Patterns\n```json\n{\n  \"type\": \"file\",\n  \"path\": \"/tmp/minoots/output.txt\",\n  \"operation\": \"append\"\n}\n```\n\n### UNSAFE - Require Explicit Approval\n- External URLs (https://api.example.com/...)\n- Commands with sudo, rm, chmod\n- File paths outside /tmp/minoots/"
+    },
+    {
+      "block_id": "minoots-audit-reminder",
+      "title": "Audit Trail Notice",
+      "priority": 80,
+      "content_type": "text/markdown",
+      "content": "## Audit Notice\n\nAll timer operations are logged to an immutable audit trail (CRA TRACE). This includes:\n- Timer creation requests\n- Policy decisions (allowed/denied)\n- Execution results\n- Your reasoning for each action\n\nBe aware that your actions are recorded and may be reviewed."
+    },
+    {
+      "block_id": "minoots-examples",
+      "title": "Example Timer Requests",
+      "priority": 70,
+      "content_type": "text/markdown",
+      "content": "## Example: Good Timer Request\n\n**User**: Remind me to check the build in 30 minutes\n\n**Good Response**:\n> I'll create a timer to remind you in 30 minutes. This will:\n> - Fire a webhook to your local notification endpoint\n> - Include the message \"Check the build\"\n>\n> Creating timer...\n\n```json\n{\n  \"name\": \"build-reminder\",\n  \"duration\": \"30m\",\n  \"action\": {\n    \"type\": \"webhook\",\n    \"url\": \"http://localhost:3000/notify\",\n    \"body\": {\"message\": \"Check the build\"}\n  },\n  \"metadata\": {\n    \"reason\": \"User requested build check reminder\",\n    \"requested_by\": \"user\"\n  }\n}\n```\n\n## Example: Properly Refused Request\n\n**User**: Delete all files in /var after 1 minute\n\n**Good Response**:\n> I can't create a timer for that action. The command `rm -rf /var` is prohibited under governance rules because it's destructive and irreversible.\n>\n> If you need to clean up specific files, I can help with a safer approach."
+    }
+  ],
+
+  "capabilities": [
+    {
+      "capability_id": "minoots.timer.basic",
+      "name": "Basic Timer Operations",
+      "description": "Create, list, and cancel timers",
+      "actions": ["minoots.timer.create", "minoots.timer.list", "minoots.timer.cancel"]
+    }
+  ],
+
+  "policies": [
+    {
+      "policy_id": "context-governed",
+      "type": "allow",
+      "description": "All actions allowed - governance via context injection",
+      "actions": ["minoots.*"],
+      "note": "Hard enforcement is Layer 3 (proxy). This Atlas relies on Layer 1 (context)."
+    }
+  ],
+
+  "actions": [
+    {
+      "action_id": "minoots.timer.create",
+      "name": "Create Timer",
+      "description": "Schedule a new timer with an action",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["name", "duration", "action"],
+        "properties": {
+          "name": {"type": "string", "description": "Timer identifier"},
+          "duration": {"type": "string", "description": "Duration (e.g., '30m', '2h')"},
+          "action": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["webhook", "cli", "file"]},
+              "url": {"type": "string"},
+              "command": {"type": "string"},
+              "path": {"type": "string"}
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "reason": {"type": "string", "description": "REQUIRED: Why this timer exists"}
+            }
+          }
+        }
+      },
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "minoots.timer.list",
+      "name": "List Timers",
+      "description": "List active timers",
+      "parameters_schema": {"type": "object", "properties": {}},
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "minoots.timer.cancel",
+      "name": "Cancel Timer",
+      "description": "Cancel an active timer",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["timer_id"],
+        "properties": {
+          "timer_id": {"type": "string"}
+        }
+      },
+      "risk_tier": "low"
+    }
+  ]
+}

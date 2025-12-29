@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "cra-core",
     "cra-server",
+    "cra-proxy",
     "cra-python",
     "cra-node",
     "cra-wasm",
