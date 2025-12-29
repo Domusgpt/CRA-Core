@@ -1,0 +1,104 @@
+{
+  "atlas_version": "1.0",
+  "atlas_id": "dev.cra.self-governance",
+  "version": "1.0.0",
+  "name": "CRA Self-Governance Atlas",
+  "description": "Atlas for AI agents developing CRA itself. Injects critical context to prevent common mistakes.",
+  "domains": ["development", "cra-core"],
+  "capabilities": [
+    {
+      "capability_id": "trace.modify",
+      "name": "Modify Trace Implementation",
+      "actions": ["trace.edit_event", "trace.edit_collector", "trace.edit_chain"]
+    },
+    {
+      "capability_id": "carp.modify",
+      "name": "Modify CARP Implementation",
+      "actions": ["carp.edit_resolver", "carp.edit_policy"]
+    }
+  ],
+  "context_blocks": [
+    {
+      "context_id": "hash-computation-rule",
+      "name": "Hash Computation Canonical Pattern",
+      "priority": 1,
+      "content": "CRITICAL: Hash computation MUST use TRACEEvent::compute_hash() from trace/event.rs. NEVER reimplement. The hash includes: trace_version, event_id, trace_id, span_id, parent_span_id, session_id, sequence, timestamp, event_type, canonical_json(payload), previous_event_hash. Use canonical_json() for payload (sorts keys), NOT serde_json::to_string().",
+      "inject_when": ["trace.edit_event", "trace.edit_collector", "trace.edit_chain"]
+    },
+    {
+      "context_id": "chain-invariants",
+      "name": "Hash Chain Invariants",
+      "priority": 2,
+      "content": "TRACE Chain Invariants: 1) Append-only (never modify/delete events), 2) Each event.previous_event_hash = prior event.event_hash, 3) First event uses GENESIS_HASH (64 zeros), 4) Sequence numbers are monotonic (0, 1, 2...), 5) One chain per session_id. Verification in chain.rs uses compute_hash() to check.",
+      "inject_when": ["trace.edit_event", "trace.edit_collector", "trace.edit_chain"]
+    },
+    {
+      "context_id": "deferred-mode-pattern",
+      "name": "Deferred Tracing Implementation",
+      "priority": 3,
+      "content": "Deferred mode: emit() stores event with event_hash='deferred' placeholder. flush() calls event.compute_hash() to fill real hashes. Events exist in session.events immediately (for API compatibility), buffer tracks pending count. DO NOT reimplement hash logic in flush().",
+      "inject_when": ["trace.edit_collector"]
+    },
+    {
+      "context_id": "test-requirements",
+      "name": "Testing Requirements",
+      "priority": 4,
+      "content": "Before any trace changes: 1) Run 'cargo test --lib' (107+ tests), 2) Run 'cargo test deferred' (6 tests), 3) Verify chain integrity with verify_chain() in tests. If chain verification fails, you likely reimplemented hash logic incorrectly.",
+      "inject_when": ["trace.edit_event", "trace.edit_collector", "trace.edit_chain"]
+    }
+  ],
+  "policies": [
+    {
+      "policy_id": "require-read-before-modify",
+      "type": "constraint",
+      "actions": ["trace.*", "carp.*"],
+      "parameters": {
+        "constraint": "read_file_first",
+        "message": "You MUST read the target file before modifying. Especially trace/event.rs for any hash-related changes."
+      }
+    },
+    {
+      "policy_id": "no-duplicate-hash-impl",
+      "type": "deny",
+      "actions": ["trace.create_hash_function"],
+      "reason": "Hash computation must only exist in TRACEEvent::compute_hash(). Creating a second implementation WILL cause chain verification failures."
+    }
+  ],
+  "actions": [
+    {
+      "action_id": "trace.edit_event",
+      "name": "Edit TRACEEvent",
+      "description": "Modify trace/event.rs - contains canonical hash computation",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "high"
+    },
+    {
+      "action_id": "trace.edit_collector",
+      "name": "Edit TraceCollector",
+      "description": "Modify trace/collector.rs - manages event chains and deferred mode",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "trace.edit_chain",
+      "name": "Edit ChainVerifier",
+      "description": "Modify trace/chain.rs - validates hash chain integrity",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "high"
+    },
+    {
+      "action_id": "carp.edit_resolver",
+      "name": "Edit Resolver",
+      "description": "Modify carp/resolver.rs - main CARP entry point",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "carp.edit_policy",
+      "name": "Edit Policy Evaluator",
+      "description": "Modify carp/policy.rs - policy evaluation logic",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "medium"
+    }
+  ]
+}
