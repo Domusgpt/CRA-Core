@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4D Tesseract Visualization - VIB3+ Style</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid #00ffcc;
+            box-shadow: 0 4px 20px rgba(0, 255, 204, 0.2);
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #00ffcc, #0099ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.25rem;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 0.8rem;
+        }
+
+        #canvas {
+            width: 100%;
+            height: calc(100vh - 80px);
+            display: block;
+            cursor: move;
+        }
+
+        .info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid #00ffcc44;
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            max-width: 300px;
+            z-index: 10;
+        }
+
+        .info h3 {
+            color: #00ffcc;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            position: absolute;
+            top: 100px;
+            right: 20px;
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid #00ffcc44;
+            border-radius: 8px;
+            padding: 1rem;
+            z-index: 10;
+            min-width: 200px;
+        }
+
+        .control-group {
+            margin-bottom: 1rem;
+        }
+
+        .control-group label {
+            display: block;
+            color: #00ffcc;
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        .control-group .value {
+            color: #888;
+            font-size: 0.7rem;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🌟 4D Tesseract Visualization</h1>
+        <p class="subtitle">VIB3+ Shader Engine - Interactive 4D Hypercube with Mouse Control</p>
+    </header>
+
+    <canvas id="canvas"></canvas>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Animation Speed</label>
+            <input type="range" id="speedSlider" min="0" max="2" step="0.1" value="0.5">
+            <div class="value" id="speedValue">0.5</div>
+        </div>
+        <div class="control-group">
+            <label>4D Distance</label>
+            <input type="range" id="distanceSlider" min="1" max="5" step="0.1" value="2.5">
+            <div class="value" id="distanceValue">2.5</div>
+        </div>
+        <div class="control-group">
+            <label>Line Thickness</label>
+            <input type="range" id="thicknessSlider" min="1" max="5" step="0.5" value="2">
+            <div class="value" id="thicknessValue">2.0</div>
+        </div>
+    </div>
+
+    <div class="info">
+        <h3>Controls</h3>
+        <strong>Mouse Move:</strong> Control 4D rotation<br>
+        • Horizontal → XW plane rotation<br>
+        • Vertical → YW plane rotation<br>
+        <br>
+        <strong>Auto-rotation:</strong> XY, YZ planes<br>
+        <br>
+        The tesseract is a 4D hypercube with 16 vertices, 32 edges, and 8 cubic cells, projected into 3D space.
+    </div>
+
+    <script>
+        // WebGL setup
+        const canvas = document.getElementById('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+        if (!gl) {
+            alert('WebGL not supported in this browser');
+        }
+
+        // Resize canvas to fill window
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 80;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Vertex shader
+        const vertexShaderSource = `
+            attribute vec4 aPosition;
+            uniform mat4 uModelViewProjection;
+
+            void main() {
+                gl_Position = uModelViewProjection * aPosition;
+                gl_PointSize = 6.0;
+            }
+        `;
+
+        // Fragment shader
+        const fragmentShaderSource = `
+            precision mediump float;
+            uniform vec3 uColor;
+
+            void main() {
+                gl_FragColor = vec4(uColor, 1.0);
+            }
+        `;
+
+        // Create shader
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader compilation error:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+
+            return shader;
+        }
+
+        // Create program
+        function createProgram(gl, vertexShader, fragmentShader) {
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                console.error('Program linking error:', gl.getProgramInfoLog(program));
+                gl.deleteProgram(program);
+                return null;
+            }
+
+            return program;
+        }
+
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+        const program = createProgram(gl, vertexShader, fragmentShader);
+
+        const aPosition = gl.getAttribLocation(program, 'aPosition');
+        const uModelViewProjection = gl.getUniformLocation(program, 'uModelViewProjection');
+        const uColor = gl.getUniformLocation(program, 'uColor');
+
+        // Matrix utilities
+        function mat4Create() {
+            return new Float32Array([
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1
+            ]);
+        }
+
+        function mat4Multiply(out, a, b) {
+            const a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3];
+            const a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7];
+            const a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11];
+            const a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
+
+            let b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
+            out[0] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+            out[1] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+            out[2] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+            out[3] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+
+            b0 = b[4]; b1 = b[5]; b2 = b[6]; b3 = b[7];
+            out[4] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+            out[5] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+            out[6] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+            out[7] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+
+            b0 = b[8]; b1 = b[9]; b2 = b[10]; b3 = b[11];
+            out[8] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+            out[9] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+            out[10] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+            out[11] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+
+            b0 = b[12]; b1 = b[13]; b2 = b[14]; b3 = b[15];
+            out[12] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
+            out[13] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
+            out[14] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
+            out[15] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
+            return out;
+        }
+
+        function mat4Perspective(out, fovy, aspect, near, far) {
+            const f = 1.0 / Math.tan(fovy / 2);
+            const nf = 1 / (near - far);
+
+            out[0] = f / aspect;
+            out[1] = 0;
+            out[2] = 0;
+            out[3] = 0;
+            out[4] = 0;
+            out[5] = f;
+            out[6] = 0;
+            out[7] = 0;
+            out[8] = 0;
+            out[9] = 0;
+            out[10] = (far + near) * nf;
+            out[11] = -1;
+            out[12] = 0;
+            out[13] = 0;
+            out[14] = 2 * far * near * nf;
+            out[15] = 0;
+            return out;
+        }
+
+        // 4D Point class
+        class Point4D {
+            constructor(x, y, z, w) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.w = w;
+            }
+
+            // Rotation in XY plane (3D)
+            rotateXY(angle) {
+                const cos = Math.cos(angle);
+                const sin = Math.sin(angle);
+                const newX = this.x * cos - this.y * sin;
+                const newY = this.x * sin + this.y * cos;
+                return new Point4D(newX, newY, this.z, this.w);
+            }
+
+            // Rotation in YZ plane (3D)
+            rotateYZ(angle) {
+                const cos = Math.cos(angle);
+                const sin = Math.sin(angle);
+                const newY = this.y * cos - this.z * sin;
+                const newZ = this.y * sin + this.z * cos;
+                return new Point4D(this.x, newY, newZ, this.w);
+            }
+
+            // Rotation in XZ plane (3D)
+            rotateXZ(angle) {
+                const cos = Math.cos(angle);
+                const sin = Math.sin(angle);
+                const newX = this.x * cos - this.z * sin;
+                const newZ = this.x * sin + this.z * cos;
+                return new Point4D(newX, this.y, newZ, this.w);
+            }
+
+            // Rotation in XW plane (4D)
+            rotateXW(angle) {
+                const cos = Math.cos(angle);
+                const sin = Math.sin(angle);
+                const newX = this.x * cos - this.w * sin;
+                const newW = this.x * sin + this.w * cos;
+                return new Point4D(newX, this.y, this.z, newW);
+            }
+
+            // Rotation in YW plane (4D)
+            rotateYW(angle) {
+                const cos = Math.cos(angle);
+                const sin = Math.sin(angle);
+                const newY = this.y * cos - this.w * sin;
+                const newW = this.y * sin + this.w * cos;
+                return new Point4D(this.x, newY, this.z, newW);
+            }
+
+            // Rotation in ZW plane (4D)
+            rotateZW(angle) {
+                const cos = Math.cos(angle);
+                const sin = Math.sin(angle);
+                const newZ = this.z * cos - this.w * sin;
+                const newW = this.z * sin + this.w * cos;
+                return new Point4D(this.x, this.y, newZ, newW);
+            }
+
+            // Project from 4D to 3D
+            project3D(distance) {
+                const w = this.w + distance;
+                const scale = 1 / w;
+                return {
+                    x: this.x * scale,
+                    y: this.y * scale,
+                    z: this.z * scale
+                };
+            }
+        }
+
+        // Create tesseract vertices (16 vertices of 4D hypercube)
+        function createTesseractVertices() {
+            const vertices = [];
+            for (let i = 0; i < 16; i++) {
+                const x = (i & 1) ? 1 : -1;
+                const y = (i & 2) ? 1 : -1;
+                const z = (i & 4) ? 1 : -1;
+                const w = (i & 8) ? 1 : -1;
+                vertices.push(new Point4D(x, y, z, w));
+            }
+            return vertices;
+        }
+
+        // Create tesseract edges (32 edges)
+        function createTesseractEdges() {
+            const edges = [];
+
+            // Connect vertices that differ by exactly one coordinate
+            for (let i = 0; i < 16; i++) {
+                for (let j = i + 1; j < 16; j++) {
+                    const diff = i ^ j;
+                    // Check if only one bit is different (power of 2)
+                    if ((diff & (diff - 1)) === 0) {
+                        edges.push([i, j]);
+                    }
+                }
+            }
+
+            return edges;
+        }
+
+        const tesseractVertices = createTesseractVertices();
+        const tesseractEdges = createTesseractEdges();
+
+        // State
+        let rotation = {
+            xy: 0,
+            yz: 0,
+            xz: 0,
+            xw: 0,
+            yw: 0,
+            zw: 0
+        };
+
+        let mouseX = 0;
+        let mouseY = 0;
+        let animationSpeed = 0.5;
+        let distance4D = 2.5;
+        let lineThickness = 2.0;
+
+        // Mouse interaction
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+            mouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+        });
+
+        // Controls
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            animationSpeed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = animationSpeed.toFixed(1);
+        });
+
+        document.getElementById('distanceSlider').addEventListener('input', (e) => {
+            distance4D = parseFloat(e.target.value);
+            document.getElementById('distanceValue').textContent = distance4D.toFixed(1);
+        });
+
+        document.getElementById('thicknessSlider').addEventListener('input', (e) => {
+            lineThickness = parseFloat(e.target.value);
+            document.getElementById('thicknessValue').textContent = lineThickness.toFixed(1);
+        });
+
+        // Draw line
+        function drawLine(p1, p2, color) {
+            const vertices = new Float32Array([
+                p1.x, p1.y, p1.z,
+                p2.x, p2.y, p2.z
+            ]);
+
+            const buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+            gl.enableVertexAttribArray(aPosition);
+            gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+
+            gl.uniform3fv(uColor, color);
+            gl.lineWidth(lineThickness);
+            gl.drawArrays(gl.LINES, 0, 2);
+
+            gl.deleteBuffer(buffer);
+        }
+
+        // Draw point
+        function drawPoint(p, color) {
+            const vertices = new Float32Array([p.x, p.y, p.z]);
+
+            const buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+            gl.enableVertexAttribArray(aPosition);
+            gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+
+            gl.uniform3fv(uColor, color);
+            gl.drawArrays(gl.POINTS, 0, 1);
+
+            gl.deleteBuffer(buffer);
+        }
+
+        // Animation loop
+        function render() {
+            // Update rotations
+            rotation.xy += 0.003 * animationSpeed;
+            rotation.yz += 0.005 * animationSpeed;
+
+            // Mouse controls 4D rotations
+            rotation.xw = mouseX * Math.PI;
+            rotation.yw = -mouseY * Math.PI;
+
+            // Clear canvas
+            gl.clearColor(0.04, 0.04, 0.1, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.enable(gl.DEPTH_TEST);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+            gl.useProgram(program);
+
+            // Create projection matrix
+            const aspect = canvas.width / canvas.height;
+            const projectionMatrix = mat4Create();
+            mat4Perspective(projectionMatrix, Math.PI / 4, aspect, 0.1, 100.0);
+
+            // Create view matrix (camera at z=8)
+            const viewMatrix = mat4Create();
+            viewMatrix[14] = -8;
+
+            const mvpMatrix = mat4Create();
+            mat4Multiply(mvpMatrix, projectionMatrix, viewMatrix);
+
+            gl.uniformMatrix4fv(uModelViewProjection, false, mvpMatrix);
+
+            // Transform and project vertices
+            const projectedVertices = tesseractVertices.map(v => {
+                let p = v;
+                p = p.rotateXY(rotation.xy);
+                p = p.rotateYZ(rotation.yz);
+                p = p.rotateXZ(rotation.xz);
+                p = p.rotateXW(rotation.xw);
+                p = p.rotateYW(rotation.yw);
+                p = p.rotateZW(rotation.zw);
+                return p.project3D(distance4D);
+            });
+
+            // Draw edges
+            tesseractEdges.forEach(edge => {
+                const p1 = projectedVertices[edge[0]];
+                const p2 = projectedVertices[edge[1]];
+
+                // Color based on depth
+                const depth = (p1.z + p2.z) / 2;
+                const hue = (depth + 2) / 4 * 180 + 180; // Cyan to blue gradient
+                const r = Math.max(0, Math.min(1, (1 - Math.abs(hue - 180) / 180)));
+                const g = Math.max(0, Math.min(1, 1 - depth / 4));
+                const b = Math.max(0, Math.min(1, 0.8 + depth / 10));
+
+                drawLine(p1, p2, [r, g, b]);
+            });
+
+            // Draw vertices
+            projectedVertices.forEach(p => {
+                const depth = p.z;
+                const r = 0;
+                const g = Math.max(0.6, 1 - depth / 4);
+                const b = 1;
+
+                drawPoint(p, [r, g, b]);
+            });
+
+            requestAnimationFrame(render);
+        }
+
+        // Start animation
+        render();
+    </script>
+</body>
+</html>

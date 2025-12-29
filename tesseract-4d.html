@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4D Tesseract Visualization - VIB3+</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        #visualization-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .visualization-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 1000;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div id="visualization-container"></div>
+    <div id="info">
+        <strong>4D Tesseract (Hypercube)</strong><br>
+        Move mouse to control 4D rotation
+    </div>
+
+    <script>
+        // 1. Setup globals FIRST (before engine loads)
+        window.currentSystem = 'faceted';
+
+        window.userParameterState = {
+            geometry: 1,              // Hypercube/tesseract (base shape index 1)
+            gridDensity: 20,
+            morphFactor: 1.0,
+            chaos: 0.1,               // Lower chaos for cleaner tesseract structure
+            speed: 1.0,
+            hue: 200,                 // Blue-cyan base color
+            saturation: 0.85,
+            intensity: 0.7,
+            rot4dXY: 0,               // 3D rotation: XY plane
+            rot4dXZ: 0,               // 3D rotation: XZ plane
+            rot4dYZ: 0,               // 3D rotation: YZ plane
+            rot4dXW: 0,               // 4D rotation: X into W dimension
+            rot4dYW: 0,               // 4D rotation: Y into W dimension
+            rot4dZW: 0                // 4D rotation: Z into W dimension
+        };
+
+        window.updateParameter = function(name, value) {
+            window.userParameterState[name] = value;
+        };
+
+        window.interactivityEnabled = true;
+
+        // 2. Create canvas layers (all 5 required for VIB3+ engine)
+        const container = document.getElementById('visualization-container');
+        const layers = ['background', 'shadow', 'content', 'highlight', 'accent'];
+
+        layers.forEach((layer, index) => {
+            const canvas = document.createElement('canvas');
+            canvas.id = `${layer}-canvas`;
+            canvas.className = 'visualization-canvas';
+            canvas.style.zIndex = index + 1;
+            container.appendChild(canvas);
+        });
+
+        // 3. Resize handler (CRITICAL: cap DPR at 2x for performance)
+        function resize() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            document.querySelectorAll('.visualization-canvas').forEach(canvas => {
+                canvas.width = window.innerWidth * dpr;
+                canvas.height = window.innerHeight * dpr;
+            });
+        }
+
+        window.addEventListener('resize', resize);
+        resize(); // Initial call required
+
+        // 4. Mouse interaction - control 4D rotation in XW and YW planes
+        document.addEventListener('mousemove', function(e) {
+            // Normalize mouse position to -1 to 1 range
+            const x = (e.clientX / window.innerWidth - 0.5) * 2;
+            const y = (e.clientY / window.innerHeight - 0.5) * 2;
+
+            // Map mouse position to 4D rotation angles
+            // XW rotation: X dimension rotating into W (4th dimension)
+            window.updateParameter('rot4dXW', x * Math.PI);
+
+            // YW rotation: Y dimension rotating into W (4th dimension)
+            window.updateParameter('rot4dYW', y * Math.PI);
+        });
+
+        // 5. Continuous animation for automatic 4D rotation
+        function animate() {
+            const t = Date.now() * 0.001; // Convert to seconds
+
+            // Continuous rotation in the ZW plane (Z into 4th dimension)
+            window.updateParameter('rot4dZW', Math.sin(t * 0.3) * 0.5);
+
+            // Subtle rotation in 3D XY plane for additional depth
+            window.updateParameter('rot4dXY', Math.sin(t * 0.2) * 0.3);
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // 6. Signal ready (triggers engine initialization)
+        window.moduleReady = true;
+    </script>
+
+    <!-- Load engine AFTER setup is complete -->
+    <script src="vib3-engine.js"></script>
+</body>
+</html>
