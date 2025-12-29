@@ -74,6 +74,42 @@ impl CARPResolution {
             .find(|d| d.action_id == action_id)
             .map(|d| d.reason.as_str())
     }
+
+    /// Render all context blocks into a single LLM-ready string
+    ///
+    /// This produces natural language context that can be injected into
+    /// an agent's system prompt or context window.
+    pub fn render_context(&self) -> String {
+        if self.context_blocks.is_empty() {
+            return String::new();
+        }
+
+        let mut output = String::new();
+        output.push_str("# Context for Your Task\n\n");
+        output.push_str("The following context has been automatically selected based on your goal.\n\n");
+
+        // Sort by priority (higher first)
+        let mut blocks = self.context_blocks.clone();
+        blocks.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+        for block in &blocks {
+            output.push_str(&format!("## {}\n\n", block.name));
+            output.push_str(&block.content);
+            output.push_str("\n\n---\n\n");
+        }
+
+        // Add metadata footer
+        output.push_str(&format!(
+            "_Context injected by CRA. {} block(s) from {} atlas(es)._\n",
+            self.context_blocks.len(),
+            self.context_blocks.iter()
+                .map(|b| b.source_atlas.as_str())
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+        ));
+
+        output
+    }
 }
 
 /// Builder for CARP resolutions

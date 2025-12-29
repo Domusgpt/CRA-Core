@@ -10,8 +10,9 @@ description = "CRA Core - Context Registry Agents core library"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["ffi"]
+default = ["ffi", "cli"]
 ffi = []
+cli = ["clap"]
 conformance = []
 async-runtime = ["tokio", "async-trait", "parking_lot", "num_cpus"]
 minoots = []  # Enable minoots timer backend integration
@@ -42,3 +43,11 @@ criterion.workspace = true
 [[bench]]
 name = "resolver_bench"
 harness = false
+
+[[bin]]
+name = "cra-context"
+path = "src/bin/cra_context.rs"
+
+[dependencies.clap]
+workspace = true
+optional = true

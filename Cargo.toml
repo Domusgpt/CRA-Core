@@ -39,3 +39,6 @@ libc = "0.2"
 
 # Testing
 criterion = "0.5"
+
+# CLI
+clap = { version = "4.4", features = ["derive"] }
