@@ -1,0 +1,144 @@
+{
+  "atlas_version": "1.0",
+  "atlas_id": "cra.agent-integration",
+  "name": "CRA Agent Integration Guide",
+  "version": "1.0.0",
+  "description": "Teaches agents how to integrate with and use CRA for context and governance",
+  "authors": ["CRA Development"],
+  "license": "MIT",
+  "domains": ["agent-development", "integration", "cra"],
+
+  "context_blocks": [
+    {
+      "context_id": "cra-what-you-have",
+      "name": "What You Have Access To",
+      "priority": 500,
+      "inject_mode": "always",
+      "content": "# CRA Integration - What You Have\n\nYou have access to CRA (Context Registry for Agents) tools. These let you:\n\n1. **Request context** when you need information\n2. **Report actions** you're taking\n3. **Give feedback** on what context was helpful\n\n## Available Tools\n\n### cra_start_session\nStart a governed session. Call this first.\n```\ncra_start_session(goal: \"What you're trying to accomplish\")\n→ Returns: session_id\n```\n\n### cra_request_context\nAsk for relevant context. Be specific about what you need.\n```\ncra_request_context(\n  need: \"What information would help you right now\",\n  hints: [\"optional\", \"keywords\"]\n)\n→ Returns: Array of context blocks with content\n```\n\n### cra_report_action\nTell CRA what you're doing (for audit trail).\n```\ncra_report_action(\n  action: \"what you're doing\",\n  params: {any relevant parameters}\n)\n→ Returns: approved/denied\n```\n\n### cra_feedback\nReport if context was helpful (improves future responses).\n```\ncra_feedback(\n  context_id: \"which context block\",\n  helpful: true/false,\n  reason: \"why it was/wasn't helpful\"\n)\n```\n\n### cra_end_session\nEnd the session when done.\n```\ncra_end_session()\n```",
+      "content_type": "text/markdown",
+      "keywords": ["cra", "tool", "integration", "start", "session"],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "cra-how-to-use",
+      "name": "How To Use CRA Effectively",
+      "priority": 480,
+      "inject_mode": "always",
+      "content": "# Using CRA Effectively\n\n## When To Request Context\n\nRequest context when you:\n- Don't know how to do something\n- Are about to make an important decision\n- Need API references or examples\n- Want to avoid common mistakes\n\n## Be Specific In Requests\n\n❌ Bad: `cra_request_context(need: \"help\")`\n\n✅ Good: `cra_request_context(need: \"How to embed VIB3+ as a background in HTML\")`\n\n✅ Good: `cra_request_context(need: \"What parameters control rotation speed\")`\n\n## Report Your Actions\n\nCRA tracks what you do for accountability. Report significant actions:\n\n```\ncra_report_action(\n  action: \"writing_file\",\n  params: {path: \"index.html\", purpose: \"add shader background\"}\n)\n```\n\n## Give Feedback\n\nYour feedback improves CRA for everyone:\n\n```\ncra_feedback(\n  context_id: \"vib3-geometry-system\",\n  helpful: true,\n  reason: \"The geometry formula helped me calculate the right index\"\n)\n\ncra_feedback(\n  context_id: \"vib3-what-it-is\",\n  helpful: false,\n  reason: \"I needed API details, not an overview\"\n)\n```",
+      "content_type": "text/markdown",
+      "keywords": ["how", "use", "request", "context", "effective"],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "cra-workflow-example",
+      "name": "Example Workflow",
+      "priority": 460,
+      "inject_mode": "on_match",
+      "content": "# Example CRA Workflow\n\n## Task: Add VIB3+ background to a website\n\n### Step 1: Start Session\n```\ncra_start_session(goal: \"Add animated VIB3+ shader background to portfolio site\")\n→ session_id: \"abc-123\"\n```\n\n### Step 2: Request Context You Need\n```\ncra_request_context(\n  need: \"How to embed VIB3+ in HTML as a background\",\n  hints: [\"iframe\", \"embed\", \"html\"]\n)\n→ Returns vib3-embed-iframe context with code examples\n```\n\n### Step 3: Report What You're Doing\n```\ncra_report_action(\n  action: \"write_file\",\n  params: {path: \"index.html\", adding: \"VIB3+ iframe background\"}\n)\n→ approved\n```\n\n### Step 4: Need More Context? Ask.\n```\ncra_request_context(\n  need: \"What geometry index gives a torus with hypersphere warp?\"\n)\n→ Returns vib3-geometry-system with formula\n```\n\n### Step 5: Give Feedback\n```\ncra_feedback(\n  context_id: \"vib3-embed-iframe\",\n  helpful: true,\n  reason: \"The complete HTML example saved me time\"\n)\n```\n\n### Step 6: End Session\n```\ncra_end_session()\n```",
+      "content_type": "text/markdown",
+      "keywords": ["example", "workflow", "step", "how"],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "cra-self-serve",
+      "name": "Self-Serve Context Discovery",
+      "priority": 440,
+      "inject_mode": "on_match",
+      "content": "# Discovering What Context Is Available\n\n## List Available Atlases\n```\ncra_list_atlases()\n→ Returns: [{id: \"vib3-webpage-development\", name: \"VIB3+ Development Atlas\", ...}]\n```\n\n## List Context Blocks In Atlas\n```\ncra_list_contexts(atlas_id: \"vib3-webpage-development\")\n→ Returns: [\n  {id: \"vib3-what-it-is\", name: \"What VIB3+ Is\", keywords: [...]},\n  {id: \"vib3-geometry-system\", name: \"Geometry System\", keywords: [...]},\n  ...\n]\n```\n\n## Request Specific Context By ID\n```\ncra_get_context(context_id: \"vib3-audio-reactivity\")\n→ Returns: Full content of that context block\n```\n\n## Search All Contexts\n```\ncra_search_contexts(query: \"how to make music visualizer\")\n→ Returns: Matching contexts ranked by relevance\n```\n\n## You Control What You Get\n\nUnlike automatic injection, you decide:\n- When to request context\n- What context you need\n- Whether to use it or not\n\nThis gives you flexibility to:\n- Work without context when you're confident\n- Request deep context when exploring\n- Build your own understanding incrementally",
+      "content_type": "text/markdown",
+      "keywords": ["discover", "list", "search", "available", "atlas", "find"],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "cra-feedback-matters",
+      "name": "Why Feedback Matters",
+      "priority": 300,
+      "inject_mode": "on_demand",
+      "content": "# Your Feedback Improves CRA\n\n## What Happens With Feedback\n\n1. **Positive feedback** confirms context is useful\n   - Increases confidence in that context\n   - May increase its priority for similar requests\n\n2. **Negative feedback** signals problems\n   - Context may be too vague/detailed\n   - Keywords might not match actual needs\n   - Content might be outdated\n\n3. **Feedback with reasons** is most valuable\n   - Helps atlas maintainers improve content\n   - Creates a learning loop\n\n## Feedback Examples\n\n### Good Feedback\n```\ncra_feedback(\n  context_id: \"vib3-geometry-system\",\n  helpful: true,\n  reason: \"Formula was exactly what I needed to calculate geometry index\"\n)\n```\n\n### Constructive Negative Feedback\n```\ncra_feedback(\n  context_id: \"vib3-what-it-is\",\n  helpful: false,\n  reason: \"Needed API details but got high-level overview. Would help if it linked to API reference.\"\n)\n```\n\n## Feedback Is Traced\n\nYour feedback becomes part of the TRACE audit log:\n- Proves you engaged with the context\n- Shows your reasoning process\n- Helps improve the system over time",
+      "content_type": "text/markdown",
+      "keywords": ["feedback", "improve", "helpful", "rating"],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    }
+  ],
+
+  "policies": [],
+  "actions": [
+    {
+      "action_id": "cra.start_session",
+      "name": "Start CRA Session",
+      "description": "Begin a governed session with CRA",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["goal"],
+        "properties": {
+          "goal": {"type": "string", "description": "What you're trying to accomplish"}
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "cra.request_context",
+      "name": "Request Context",
+      "description": "Ask CRA for relevant context based on your current need",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["need"],
+        "properties": {
+          "need": {"type": "string", "description": "What information would help you"},
+          "hints": {"type": "array", "items": {"type": "string"}, "description": "Optional keywords to improve matching"}
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "cra.report_action",
+      "name": "Report Action",
+      "description": "Tell CRA what action you're taking",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["action"],
+        "properties": {
+          "action": {"type": "string", "description": "What you're doing"},
+          "params": {"type": "object", "description": "Relevant parameters"}
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "cra.feedback",
+      "name": "Give Feedback",
+      "description": "Report whether context was helpful",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["context_id", "helpful"],
+        "properties": {
+          "context_id": {"type": "string"},
+          "helpful": {"type": "boolean"},
+          "reason": {"type": "string", "description": "Why it was/wasn't helpful"}
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "cra.end_session",
+      "name": "End Session",
+      "description": "End the CRA session",
+      "parameters_schema": {"type": "object", "properties": {}},
+      "risk_tier": "low"
+    }
+  ]
+}
