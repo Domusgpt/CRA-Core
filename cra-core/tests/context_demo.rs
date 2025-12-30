@@ -4,7 +4,7 @@
 
 use cra_core::{
     Resolver, CARPRequest,
-    atlas::{AtlasManifest, AtlasContextBlock},
+    atlas::{AtlasManifest, AtlasContextBlock, InjectMode},
     trace::EventType,
 };
 use serde_json::json;
@@ -88,6 +88,8 @@ hasher.update(serde_json::to_string(&event)?); // BREAKS CHAIN!
 Use `canonical_json()` not `serde_json::to_string()` - key order matters!
 "#.to_string(),
             content_type: "text/markdown".to_string(),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
             inject_when: vec![],
             keywords: vec!["hash".to_string(), "sha256".to_string(), "compute".to_string()],
             risk_tiers: vec!["high".to_string()],
@@ -118,6 +120,8 @@ If verification fails, check:
 3. Are sequences monotonic?
 "#.to_string(),
             content_type: "text/markdown".to_string(),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
             inject_when: vec![],
             keywords: vec!["chain".to_string(), "verify".to_string(), "integrity".to_string()],
             risk_tiers: vec![],
@@ -134,6 +138,8 @@ Always read trace/event.rs before touching hash logic.
 It contains compute_hash() - the ONLY valid hash implementation.
 "#.to_string(),
             content_type: "text/markdown".to_string(),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
             inject_when: vec![],
             keywords: vec!["modify".to_string(), "read".to_string(), "before".to_string()],
             risk_tiers: vec![],
