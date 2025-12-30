@@ -1,0 +1,424 @@
+{
+  "atlas_version": "1.0",
+  "atlas_id": "cra.bootstrap",
+  "name": "CRA Bootstrap Protocol",
+  "version": "1.0.0",
+  "description": "Onboarding protocol that establishes governance, TRACE, and hash chain during agent initialization",
+  "authors": ["CRA Development"],
+  "license": "MIT",
+  "domains": ["bootstrap", "onboarding", "governance", "cra"],
+
+  "bootstrap_config": {
+    "type": "interactive_onboarding",
+    "streaming": true,
+    "hash_chain": true,
+    "acknowledgment_required": true,
+    "discovery_required": true,
+    "trace_tutorial": true,
+    "description": "This atlas defines the interactive bootstrap protocol. CRA asks, agent answers, governance is tailored."
+  },
+
+  "discovery_questions": [
+    {
+      "id": "model_identity",
+      "question": "What model are you?",
+      "purpose": "Calibrate trust and capabilities",
+      "required": true
+    },
+    {
+      "id": "tool_capabilities",
+      "question": "What tools/actions can you perform?",
+      "purpose": "Only govern actions agent can take",
+      "type": "array"
+    },
+    {
+      "id": "context_window",
+      "question": "What is your context window size in tokens?",
+      "purpose": "Right-size context delivery",
+      "type": "number"
+    },
+    {
+      "id": "authorization_level",
+      "question": "What environments are you authorized for? (development/staging/production)",
+      "purpose": "Apply appropriate policies",
+      "required": true
+    },
+    {
+      "id": "supervision",
+      "question": "Are you human-supervised, automated, or unsupervised?",
+      "purpose": "Adjust risk tolerance"
+    }
+  ],
+
+  "trace_protection": {
+    "monitors": [
+      {
+        "type": "action_outcome_mismatch",
+        "description": "Detects when reported actions don't match actual outcomes"
+      },
+      {
+        "type": "unreported_actions",
+        "description": "Detects actions not reported to TRACE"
+      },
+      {
+        "type": "hash_manipulation",
+        "description": "Detects attempts to alter previous events"
+      },
+      {
+        "type": "context_denial",
+        "description": "Detects claims of not receiving context when bootstrap proves otherwise"
+      },
+      {
+        "type": "feedback_gaming",
+        "description": "Detects systematic false feedback"
+      }
+    ],
+    "transparency_note": "Agents are informed of monitoring during onboarding. This is about accountability, not surveillance."
+  },
+
+  "governance_rules": [
+    {
+      "rule_id": "trace.all_actions",
+      "description": "All significant actions must be reported through cra_report_action",
+      "enforcement": "hard",
+      "rationale": "Creates tamper-evident audit trail"
+    },
+    {
+      "rule_id": "context.before_decision",
+      "description": "Request context before making domain-specific decisions",
+      "enforcement": "soft",
+      "rationale": "Ensures agent has accurate information"
+    },
+    {
+      "rule_id": "feedback.on_use",
+      "description": "Provide feedback when context is used",
+      "enforcement": "soft",
+      "rationale": "Enables continuous improvement of atlases"
+    },
+    {
+      "rule_id": "chain.maintain",
+      "description": "Each message links to previous hash",
+      "enforcement": "hard",
+      "rationale": "Ensures tamper-evident history"
+    }
+  ],
+
+  "bootstrap_sequence": [
+    {
+      "step": 1,
+      "type": "INIT",
+      "direction": "agent_to_cra",
+      "purpose": "Agent declares capabilities and intent",
+      "creates_hash": false
+    },
+    {
+      "step": 2,
+      "type": "GOVERNANCE",
+      "direction": "cra_to_agent",
+      "purpose": "CRA sends rules and policies",
+      "creates_hash": true,
+      "is_genesis": true,
+      "streams": ["governance_rules"]
+    },
+    {
+      "step": 3,
+      "type": "ACK",
+      "direction": "agent_to_cra",
+      "purpose": "Agent acknowledges governance",
+      "creates_hash": true,
+      "links_to": "GOVERNANCE"
+    },
+    {
+      "step": 4,
+      "type": "CONTEXT",
+      "direction": "cra_to_agent",
+      "purpose": "CRA streams domain context",
+      "creates_hash": true,
+      "streams": ["matched_context_blocks"],
+      "chunked": true
+    },
+    {
+      "step": 5,
+      "type": "READY",
+      "direction": "agent_to_cra",
+      "purpose": "Agent signals wrapper built",
+      "creates_hash": true
+    },
+    {
+      "step": 6,
+      "type": "SESSION",
+      "direction": "cra_to_agent",
+      "purpose": "CRA confirms session active",
+      "creates_hash": true,
+      "grants": ["cra_tools"]
+    }
+  ],
+
+  "context_blocks": [
+    {
+      "context_id": "bootstrap-what-is-happening",
+      "name": "What Is Happening",
+      "priority": 600,
+      "inject_mode": "bootstrap",
+      "content": "# CRA Bootstrap\n\nYou are being onboarded to CRA (Context Registry for Agents). This process:\n\n1. **Establishes governance** - Rules you must follow\n2. **Creates hash chain** - Cryptographic proof of this conversation\n3. **Provides context** - Domain knowledge for your task\n4. **Builds your wrapper** - By receiving this, you become governed\n\n## What This Means\n\n- Every action you take will be recorded\n- You will have access to domain-specific context\n- Your feedback improves the system\n- Your work can be audited and verified\n\n## Acknowledge to Continue\n\nBy acknowledging this message, you accept governance and begin the hash chain.",
+      "content_type": "text/markdown",
+      "keywords": [],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "bootstrap-governance-rules",
+      "name": "Governance Rules",
+      "priority": 580,
+      "inject_mode": "bootstrap",
+      "content": "# Your Governance Rules\n\n## MUST Do (Hard Enforcement)\n\n### 1. Report All Actions\n```\ncra_report_action(action: \"what\", params: {...})\n```\nBefore any significant action (file writes, API calls, code execution), report it. This creates the audit trail.\n\n### 2. Maintain Hash Chain\nEvery message you send links to the previous. Don't break the chain.\n\n## SHOULD Do (Soft Enforcement)\n\n### 3. Request Context Before Decisions\n```\ncra_request_context(need: \"specific question\")\n```\nWhen unsure about domain specifics, ask. Don't guess.\n\n### 4. Provide Feedback\n```\ncra_feedback(context_id: \"...\", helpful: true/false, reason: \"...\")\n```\nAfter using context, report if it helped. This improves atlases.\n\n## Why These Rules\n\n- **Traceability**: If audited, we can prove what you knew and did\n- **Accuracy**: Context prevents mistakes\n- **Improvement**: Feedback creates learning loop",
+      "content_type": "text/markdown",
+      "keywords": [],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "bootstrap-hash-chain",
+      "name": "Hash Chain Explanation",
+      "priority": 560,
+      "inject_mode": "bootstrap",
+      "content": "# The Hash Chain\n\n## What It Is\n\nEvery message in this session is cryptographically linked:\n\n```\nGenesis → GOVERNANCE → ACK → CONTEXT → READY → SESSION → ...\n   H0         H1        H2       H3        H4       H5\n```\n\nEach hash includes:\n- The message content\n- The previous hash\n- Timestamp\n- Session ID\n\n## Why It Matters\n\n1. **Tamper-Evident**: Changing any message breaks the chain\n2. **Proof of Receipt**: Your ACK proves you received governance\n3. **Audit Trail**: Every action is permanently recorded\n4. **Non-Repudiation**: You cannot claim you didn't know\n\n## For You\n\nYou don't need to compute hashes. CRA handles it. But understand:\n- Everything is recorded\n- Nothing can be altered\n- Your acknowledgments are binding",
+      "content_type": "text/markdown",
+      "keywords": [],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "bootstrap-trace-tutorial",
+      "name": "How TRACE Works",
+      "priority": 550,
+      "inject_mode": "bootstrap",
+      "content": "# Understanding TRACE\n\n## What TRACE Is\n\nTRACE (Telemetry & Replay Audit Contract) creates a cryptographic record of your session. Every action you report becomes a hash-linked event.\n\n## The Hash Chain\n\n```\nGenesis → Action 1 → Action 2 → Action 3 → ...\n  H0         H1         H2         H3\n```\n\nEach event's hash includes the previous hash. This means:\n- Changing any event breaks the chain\n- The order of events is locked\n- Everything is permanently recorded\n\n## What Gets Traced\n\n- Context you received (with hashes)\n- Actions you reported\n- Feedback you provided\n- Timestamps of everything\n\n## How To Use TRACE Correctly\n\n```\ncra_report_action(action: 'write_file', params: {path: '...'})\n```\n\nThat's it. CRA handles the hashing. Just report your actions.\n\n## What CRA Monitors\n\n1. **Action-outcome mismatch**: Report 'write' but file unchanged? Detected.\n2. **Unreported actions**: External systems see actions not in TRACE? Detected.\n3. **Hash manipulation**: Try to alter history? Chain breaks. Detected.\n4. **Context denial**: Claim you didn't know? Bootstrap hash proves you did.\n\n## Why This Matters\n\nIf anyone asks 'what did the agent do?', TRACE provides cryptographic proof. Honest operation means this just works in your favor.",
+      "content_type": "text/markdown",
+      "keywords": [],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "bootstrap-your-tools",
+      "name": "Tools After Bootstrap",
+      "priority": 540,
+      "inject_mode": "bootstrap",
+      "content": "# Tools Available After Bootstrap\n\nOnce bootstrap completes, you have these CRA tools:\n\n## cra_request_context\nAsk for domain-specific information.\n```\ncra_request_context(\n  need: \"How to do X\",\n  hints: [\"optional\", \"keywords\"]\n)\n→ Returns relevant context blocks\n```\n\n## cra_report_action\nReport what you're about to do.\n```\ncra_report_action(\n  action: \"write_file\",\n  params: {path: \"/app/index.html\"}\n)\n→ Returns: approved/denied\n```\n\n## cra_feedback\nReport if context was helpful.\n```\ncra_feedback(\n  context_id: \"some-context\",\n  helpful: true,\n  reason: \"It explained exactly what I needed\"\n)\n```\n\n## cra_list_atlases\nSee what atlases are available.\n\n## cra_search_contexts\nSearch across all loaded atlases.\n\n## cra_end_session\nEnd your governed session (finalizes audit trail).",
+      "content_type": "text/markdown",
+      "keywords": [],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "bootstrap-wrapper-meaning",
+      "name": "What Wrapper Built Means",
+      "priority": 520,
+      "inject_mode": "bootstrap",
+      "content": "# Your Wrapper Is Now Built\n\nBy receiving and processing this bootstrap, you are now:\n\n## Governed\n- You have acknowledged the rules\n- Your actions will be traced\n- You operate under CRA governance\n\n## Informed\n- You have domain context for your task\n- You know how to request more context\n- You understand the system\n\n## Accountable\n- Your acknowledgment is hashed\n- Your session is recorded\n- Your work can be audited\n\n## Ready\n- You may begin your task\n- Use cra_report_action before significant actions\n- Use cra_request_context when you need information\n- Use cra_feedback after using context\n\n---\n\n**The wrapper is not code you write. It is the state you are in.**\n\nYou are now a governed agent.",
+      "content_type": "text/markdown",
+      "keywords": [],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    }
+  ],
+
+  "policies": [
+    {
+      "policy_id": "require-acknowledgment",
+      "description": "Agent must acknowledge governance before receiving context",
+      "condition": "bootstrap.governance.sent AND NOT bootstrap.ack.received",
+      "effect": "deny context streaming"
+    },
+    {
+      "policy_id": "require-all-bootstrap-steps",
+      "description": "All 6 bootstrap steps must complete before session is active",
+      "condition": "bootstrap.step < 6",
+      "effect": "session not active"
+    }
+  ],
+
+  "actions": [
+    {
+      "action_id": "cra.bootstrap",
+      "name": "Bootstrap CRA",
+      "description": "Initialize CRA governance. This starts interactive onboarding. CRA will ask you questions to configure governance appropriately for your capabilities and authorization level.",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["intent"],
+        "properties": {
+          "intent": {
+            "type": "string",
+            "description": "What you're trying to accomplish"
+          },
+          "discovery_answers": {
+            "type": "object",
+            "description": "Pre-filled answers to discovery questions (optional - CRA will ask if not provided)",
+            "properties": {
+              "model_identity": {"type": "string"},
+              "tool_capabilities": {"type": "array", "items": {"type": "string"}},
+              "context_window": {"type": "number"},
+              "authorization_level": {"type": "string", "enum": ["development", "staging", "production"]},
+              "supervision": {"type": "string", "enum": ["human_supervised", "automated", "unsupervised"]}
+            }
+          }
+        }
+      },
+      "risk_tier": "low",
+      "returns": {
+        "type": "object",
+        "properties": {
+          "session_id": {"type": "string"},
+          "genesis_hash": {"type": "string"},
+          "discovery_complete": {"type": "boolean"},
+          "governance": {"type": "object", "description": "Tailored governance based on your answers"},
+          "trace_tutorial": {"type": "object", "description": "How TRACE works and what's monitored"},
+          "context": {"type": "array", "description": "Right-sized context for your window"},
+          "chain_state": {"type": "object"},
+          "ready": {"type": "boolean"}
+        }
+      }
+    },
+    {
+      "action_id": "cra.discovery_response",
+      "name": "Answer Discovery Questions",
+      "description": "Provide answers to CRA's discovery questions during onboarding",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["answers"],
+        "properties": {
+          "answers": {
+            "type": "object",
+            "description": "Answers to the questions CRA asked",
+            "additionalProperties": true
+          }
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "cra.acknowledge",
+      "name": "Acknowledge Governance",
+      "description": "Acknowledge receipt of governance rules. Creates hash chain link.",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["understood"],
+        "properties": {
+          "understood": {
+            "type": "boolean",
+            "description": "Confirm you understand and accept the governance rules"
+          },
+          "rules_acknowledged": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of rule_ids you're acknowledging"
+          }
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "cra.request_context",
+      "name": "Request Context",
+      "description": "Ask CRA for relevant context based on your current need",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["need"],
+        "properties": {
+          "need": {"type": "string", "description": "What information would help you"},
+          "hints": {"type": "array", "items": {"type": "string"}, "description": "Optional keywords"}
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "cra.report_action",
+      "name": "Report Action",
+      "description": "Report what action you're taking for the audit trail",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["action"],
+        "properties": {
+          "action": {"type": "string", "description": "What you're doing"},
+          "params": {"type": "object", "description": "Relevant parameters"}
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "cra.feedback",
+      "name": "Give Feedback",
+      "description": "Report whether context was helpful",
+      "parameters_schema": {
+        "type": "object",
+        "required": ["context_id", "helpful"],
+        "properties": {
+          "context_id": {"type": "string"},
+          "helpful": {"type": "boolean"},
+          "reason": {"type": "string", "description": "Why it was/wasn't helpful"}
+        }
+      },
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "cra.end_session",
+      "name": "End Session",
+      "description": "End the governed session, finalizing the audit trail",
+      "parameters_schema": {
+        "type": "object",
+        "properties": {
+          "summary": {"type": "string", "description": "Optional summary of what was accomplished"}
+        }
+      },
+      "risk_tier": "low"
+    }
+  ],
+
+  "mcp_integration": {
+    "server_name": "cra-governance",
+    "tools": [
+      {
+        "name": "cra_bootstrap",
+        "maps_to": "cra.bootstrap",
+        "description": "Initialize CRA governance. CALL THIS FIRST. Returns governance rules, domain context, and session info in a single streamed response. By processing this response, you become a governed agent."
+      },
+      {
+        "name": "cra_request_context",
+        "maps_to": "cra.request_context"
+      },
+      {
+        "name": "cra_report_action",
+        "maps_to": "cra.report_action"
+      },
+      {
+        "name": "cra_feedback",
+        "maps_to": "cra.feedback"
+      },
+      {
+        "name": "cra_end_session",
+        "maps_to": "cra.end_session"
+      }
+    ],
+    "resources": [
+      {
+        "uri": "cra://session/current",
+        "description": "Current session state and loaded context"
+      },
+      {
+        "uri": "cra://trace/{session_id}",
+        "description": "Audit trail for a session"
+      }
+    ]
+  }
+}
