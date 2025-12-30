@@ -548,6 +548,7 @@ mod tests {
             policies: vec![],
             actions: vec![],
             dependencies: None,
+            sources: None,
         };
 
         let validator = AtlasValidator::new();

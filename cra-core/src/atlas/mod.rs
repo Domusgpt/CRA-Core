@@ -15,7 +15,7 @@ mod validator;
 
 pub use manifest::{
     AtlasManifest, AtlasAction, AtlasPolicy, AtlasCapability, AtlasContextPack,
-    AtlasContextBlock, PolicyType, RiskTier,
+    AtlasContextBlock, PolicyType, RiskTier, InjectMode, AtlasSources,
 };
 pub use loader::AtlasLoader;
 pub use validator::AtlasValidator;
@@ -45,6 +45,7 @@ mod tests {
             policies: vec![],
             actions: vec![],
             dependencies: None,
+            sources: None,
         };
 
         let json = serde_json::to_string(&manifest).unwrap();

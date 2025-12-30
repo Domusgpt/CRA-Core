@@ -13,7 +13,7 @@ use chrono::Utc;
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::atlas::{AtlasAction, AtlasManifest};
+use crate::atlas::{AtlasAction, AtlasContextBlock, AtlasManifest, InjectMode};
 use crate::context::{ContextRegistry, ContextMatcher, LoadedContext, ContextSource};
 use crate::error::{CRAError, Result};
 use crate::trace::{DeferredConfig, EventType, TraceCollector, TRACEEvent};
@@ -825,6 +825,8 @@ mod tests {
                 priority: 100,
                 content: "CRITICAL: Use TRACEEvent::compute_hash()".to_string(),
                 content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::OnMatch,
+                also_inject: vec![],
                 inject_when: vec![],
                 keywords: vec!["hash".to_string(), "trace".to_string()],
                 risk_tiers: vec![],
@@ -835,6 +837,8 @@ mod tests {
                 priority: 50,
                 content: "Always run cargo test before committing".to_string(),
                 content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::OnMatch,
+                also_inject: vec![],
                 inject_when: vec![],
                 keywords: vec!["test".to_string(), "testing".to_string()],
                 risk_tiers: vec![],

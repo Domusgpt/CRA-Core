@@ -60,6 +60,10 @@ pub struct AtlasManifest {
     /// Dependencies on other atlases
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<HashMap<String, String>>,
+
+    /// External sources (repositories, documentation, demos)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sources: Option<AtlasSources>,
 }
 
 impl AtlasManifest {
@@ -182,8 +186,14 @@ impl AtlasManifestBuilder {
                 policies: vec![],
                 actions: vec![],
                 dependencies: None,
+                sources: None,
             },
         }
+    }
+
+    pub fn sources(mut self, sources: AtlasSources) -> Self {
+        self.manifest.sources = Some(sources);
+        self
     }
 
     pub fn version(mut self, version: &str) -> Self {
@@ -282,6 +292,10 @@ pub struct AtlasContextPack {
     #[serde(default)]
     pub priority: i32,
 
+    /// Injection mode: always, on_match, on_demand, or risk_based
+    #[serde(default)]
+    pub inject_mode: InjectMode,
+
     /// Conditions for when to include this pack
     #[serde(skip_serializing_if = "Option::is_none")]
     pub conditions: Option<Value>,
@@ -306,6 +320,14 @@ pub struct AtlasContextBlock {
     /// Content type (defaults to text/markdown)
     #[serde(default = "default_content_type")]
     pub content_type: String,
+
+    /// Injection mode: always, on_match, on_demand, or risk_based
+    #[serde(default)]
+    pub inject_mode: InjectMode,
+
+    /// Other context_ids to inject when this block matches
+    #[serde(default)]
+    pub also_inject: Vec<String>,
 
     /// Action patterns that trigger injection
     #[serde(default)]
@@ -514,6 +536,53 @@ pub enum RiskTier {
     Critical,
 }
 
+/// Injection mode for context blocks
+///
+/// Controls when and how context is injected into resolutions.
+/// Inspired by Claude Skills' progressive disclosure pattern.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InjectMode {
+    /// Always inject when atlas is active (essential facts, critical warnings)
+    Always,
+    /// Inject when keywords match the goal (current default behavior)
+    #[default]
+    OnMatch,
+    /// Only inject if explicitly requested via context_hints
+    OnDemand,
+    /// Inject based on the risk tier of the request
+    RiskBased,
+}
+
+impl std::fmt::Display for InjectMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InjectMode::Always => write!(f, "always"),
+            InjectMode::OnMatch => write!(f, "on_match"),
+            InjectMode::OnDemand => write!(f, "on_demand"),
+            InjectMode::RiskBased => write!(f, "risk_based"),
+        }
+    }
+}
+
+/// External sources for an atlas
+///
+/// Links to repositories, documentation, and demos for deeper reference.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AtlasSources {
+    /// Source code repositories
+    #[serde(default)]
+    pub repositories: Vec<String>,
+
+    /// Documentation URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation: Option<String>,
+
+    /// Live demo URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub demo: Option<String>,
+}
+
 impl std::fmt::Display for RiskTier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -639,5 +708,74 @@ mod tests {
 
         assert_eq!(action.risk_tier, "medium");
         assert!(action.idempotent);
+    }
+
+    #[test]
+    fn test_inject_mode_default() {
+        let block: AtlasContextBlock = serde_json::from_str(r#"{
+            "context_id": "test",
+            "name": "Test",
+            "content": "Test content"
+        }"#).unwrap();
+
+        assert_eq!(block.inject_mode, InjectMode::OnMatch);
+    }
+
+    #[test]
+    fn test_inject_mode_always() {
+        let block: AtlasContextBlock = serde_json::from_str(r#"{
+            "context_id": "essential",
+            "name": "Essential Facts",
+            "content": "Critical information",
+            "inject_mode": "always",
+            "priority": 350
+        }"#).unwrap();
+
+        assert_eq!(block.inject_mode, InjectMode::Always);
+        assert_eq!(block.priority, 350);
+    }
+
+    #[test]
+    fn test_atlas_sources() {
+        let sources: AtlasSources = serde_json::from_str(r#"{
+            "repositories": ["https://github.com/example/repo"],
+            "documentation": "https://docs.example.com",
+            "demo": "https://demo.example.com"
+        }"#).unwrap();
+
+        assert_eq!(sources.repositories.len(), 1);
+        assert_eq!(sources.documentation, Some("https://docs.example.com".to_string()));
+        assert_eq!(sources.demo, Some("https://demo.example.com".to_string()));
+    }
+
+    #[test]
+    fn test_manifest_with_sources() {
+        let manifest = AtlasManifest::builder(
+            "com.test.sources".to_string(),
+            "Sources Test".to_string(),
+        )
+        .sources(AtlasSources {
+            repositories: vec!["https://github.com/test/repo".to_string()],
+            documentation: Some("https://docs.test.com".to_string()),
+            demo: None,
+        })
+        .build();
+
+        assert!(manifest.sources.is_some());
+        let sources = manifest.sources.unwrap();
+        assert_eq!(sources.repositories.len(), 1);
+    }
+
+    #[test]
+    fn test_also_inject() {
+        let block: AtlasContextBlock = serde_json::from_str(r#"{
+            "context_id": "workflow",
+            "name": "Workflow Guide",
+            "content": "How to do X",
+            "also_inject": ["essential-facts", "parameters-ref"]
+        }"#).unwrap();
+
+        assert_eq!(block.also_inject.len(), 2);
+        assert_eq!(block.also_inject[0], "essential-facts");
     }
 }
