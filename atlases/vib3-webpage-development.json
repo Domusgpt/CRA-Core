@@ -2,8 +2,8 @@
   "atlas_version": "1.0",
   "atlas_id": "dev.vib3.webpage-development",
   "name": "VIB3+ Development Atlas",
-  "version": "5.0.0",
-  "description": "Context for building with VIB3+ shader visualization",
+  "version": "6.0.0",
+  "description": "Verified context for building with VIB3+ shader visualization engine",
   "authors": ["CRA Development"],
   "license": "MIT",
   "domains": ["webgl", "visualization", "shader", "web-design"],
@@ -19,106 +19,94 @@
 
   "capabilities": [],
 
-  "context_packs": [
-    {
-      "pack_id": "vib3-docs",
-      "name": "VIB3+ Documentation",
-      "files": [
-        "docs/atlases/vib3/README.md",
-        "docs/atlases/vib3/embedding.md",
-        "docs/atlases/vib3/customizing.md",
-        "docs/atlases/vib3/sdk.md"
-      ],
-      "priority": 100,
-      "inject_mode": "on_demand"
-    }
-  ],
-
   "context_blocks": [
     {
-      "context_id": "vib3-essential-facts",
-      "name": "Essential VIB3+ Facts",
-      "priority": 350,
+      "context_id": "vib3-what-it-is",
+      "name": "What VIB3+ Is",
+      "priority": 400,
       "inject_mode": "always",
-      "content": "# VIB3+ Essential Facts\n\n## Working Systems\n- **Faceted** - 2D geometric patterns (WORKING)\n- **Quantum** - 3D lattice effects (WORKING)\n- **Holographic** - Audio-reactive (WORKING)\n\n## NOT Working\n- **Polychora** - PLACEHOLDER ONLY, do not use\n\n## What VIB3+ Creates\nShader-based animated backgrounds for web design:\n- Landing page backgrounds\n- Portfolio sites\n- Interactive art\n- Music visualizers\n\n## What VIB3+ Does NOT Do\n- Does NOT render literal 3D/4D geometric shapes\n- \"Hypercube\" = hypercube-inspired pattern, not a wireframe\n- \"4D rotation\" = shader morphing parameters\n\n## Two Repositories\n| Repo | Use For |\n|------|--------|\n| vib3-plus-engine | Embedding, customizing UI |\n| vib34d-vib3plus | Building custom apps with SDK |",
+      "content": "# What VIB3+ Is\n\nVIB3+ is a **shader-based visualization engine** for web pages. It creates animated backgrounds using WebGL shaders.\n\n## It Creates\n- Landing page animated backgrounds\n- Portfolio site effects\n- Music visualizers (audio-reactive)\n- Interactive art\n\n## It Does NOT Create\n- Wireframe 3D geometry\n- Literal 4D polytope renders\n- The names (hypercube, tesseract) describe shader patterns, not actual geometry\n\n## Four Systems\n| Key | System | Use For |\n|-----|--------|---------|\n| 1 | Faceted | Clean geometric patterns |\n| 2 | Quantum | Flowing lattice effects |\n| 3 | Holographic | Audio-reactive shimmers |\n| 4 | Polychora | 4D math art (less stable) |\n\n**For production: Use faceted, quantum, or holographic.** Polychora exists but may be unstable.\n\n## Live Demo\nhttps://domusgpt.github.io/vib3-plus-engine/",
       "content_type": "text/markdown",
-      "keywords": ["vib3", "essential", "working", "polychora", "system", "what"],
+      "keywords": ["vib3", "what", "is", "about", "system", "create", "does"],
+      "also_inject": [],
       "inject_when": [],
       "risk_tiers": []
     },
 
     {
-      "context_id": "vib3-workflow-embed",
-      "name": "Workflow: Embedding VIB3+",
+      "context_id": "vib3-geometry-system",
+      "name": "Geometry System",
+      "priority": 380,
+      "inject_mode": "on_match",
+      "content": "# VIB3+ Geometry System\n\n## 24 Geometries Per System\n\nFormula: `geometry = coreIndex * 8 + baseIndex`\n\n### Base Geometries (0-7)\n| Index | Name | Shortcut |\n|-------|------|----------|\n| 0 | Tetrahedron | Alt+Q |\n| 1 | Hypercube | Alt+W |\n| 2 | Sphere | Alt+E |\n| 3 | Torus | Alt+R |\n| 4 | Klein Bottle | Alt+A |\n| 5 | Fractal | Alt+S |\n| 6 | Wave | Alt+D |\n| 7 | Crystal | Alt+F |\n\n### Core Variations\n| Core | Multiply By | Effect | Shortcut |\n|------|-------------|--------|----------|\n| Base | 0 | Original (0-7) | Alt+1 |\n| Hypersphere | 8 | 4D sphere warp (8-15) | Alt+2 |\n| Hypertetra | 16 | 4D tetra warp (16-23) | Alt+3 |\n\n### Examples\n- Geometry 3 = Base Torus (0×8 + 3)\n- Geometry 11 = Hypersphere Torus (1×8 + 3)\n- Geometry 19 = Hypertetra Torus (2×8 + 3)\n\n### API\n```javascript\nwindow.selectGeometry(11);  // Hypersphere Torus\n```",
+      "content_type": "text/markdown",
+      "keywords": ["geometry", "index", "formula", "torus", "sphere", "hypercube", "select", "base", "core"],
+      "also_inject": ["vib3-what-it-is"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-javascript-api",
+      "name": "JavaScript API",
+      "priority": 360,
+      "inject_mode": "on_match",
+      "content": "# VIB3+ JavaScript API\n\nAll functions are on `window.*`:\n\n## Core Functions\n```javascript\n// Switch system\nwindow.switchSystem('holographic')  // 'faceted', 'quantum', 'holographic', 'polychora'\n\n// Select geometry (0-23)\nwindow.selectGeometry(11)\n\n// Update parameter\nwindow.updateParameter('hue', 280)\nwindow.updateParameter('speed', 1.5)\nwindow.updateParameter('rot4dXW', 3.14)\n\n// Randomize / Reset\nwindow.randomizeAll()\nwindow.resetAll()\n```\n\n## Parameters\n| Parameter | Range | Default |\n|-----------|-------|--------|\n| hue | 0-360 | 200 |\n| saturation | 0-1 | 0.8 |\n| intensity | 0-1 | 0.5 |\n| gridDensity | 5-100 | 15 |\n| morphFactor | 0-2 | 1.0 |\n| chaos | 0-1 | 0.2 |\n| speed | 0.1-3 | 1.0 |\n| rot4dXY/XZ/YZ/XW/YW/ZW | -6.28 to 6.28 | 0 |\n\n## Toggles\n```javascript\nwindow.toggleAudio()           // Audio reactivity\nwindow.toggleDeviceTilt()      // 4D device rotation\nwindow.toggleInteractivity()   // Mouse interaction\n```\n\n## Gallery\n```javascript\nwindow.saveToGallery()\nwindow.openGallery()\n```",
+      "content_type": "text/markdown",
+      "keywords": ["api", "javascript", "function", "window", "switch", "update", "parameter", "code"],
+      "also_inject": ["vib3-what-it-is"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-keyboard-shortcuts",
+      "name": "Keyboard Shortcuts",
+      "priority": 340,
+      "inject_mode": "on_match",
+      "content": "# VIB3+ Keyboard Shortcuts\n\n## System & Geometry\n| Key | Action |\n|-----|--------|\n| 1-4 | Switch systems |\n| Alt+1-3 | Select core (Base, Hypersphere, Hypertetra) |\n| Alt+Q/W/E/R | Base geometries 0-3 |\n| Alt+A/S/D/F | Base geometries 4-7 |\n| ←/→ | Navigate geometries |\n| ↑/↓ | Cycle systems |\n\n## Actions\n| Key | Action |\n|-----|--------|\n| H | Show help modal |\n| Ctrl+R | Randomize |\n| Ctrl+Shift+Z | Reset all |\n| Ctrl+Z / Ctrl+Y | Undo / Redo |\n\n## Save & Share\n| Key | Action |\n|-----|--------|\n| Ctrl+S | Save to gallery |\n| Ctrl+G | Open gallery |\n| Ctrl+L | Copy shareable URL |\n\n## Toggles\n| Key | Action |\n|-----|--------|\n| A | Audio reactivity |\n| T | Device tilt |\n| I | Interactivity menu |\n| F | Fullscreen |\n| P | Performance stats |\n\n## UI\n| Key | Action |\n|-----|--------|\n| Space / Ctrl+B | Toggle bottom panel |\n| Ctrl+1-5 | Switch tabs |",
+      "content_type": "text/markdown",
+      "keywords": ["keyboard", "shortcut", "key", "ctrl", "alt", "press"],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-embed-iframe",
+      "name": "Embedding with iframe",
+      "priority": 350,
+      "inject_mode": "on_match",
+      "content": "# Embedding VIB3+ in a Webpage\n\n## Full-Page Background\n```html\n<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    .vib3-bg {\n      position: fixed;\n      inset: 0;\n      z-index: -1;\n    }\n    .vib3-bg iframe {\n      width: 100%;\n      height: 100%;\n      border: none;\n    }\n    .content {\n      position: relative;\n      z-index: 1;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"vib3-bg\">\n    <iframe src=\"https://domusgpt.github.io/vib3-plus-engine/\"></iframe>\n  </div>\n  <div class=\"content\">\n    <h1>Your Content</h1>\n  </div>\n</body>\n</html>\n```\n\n## With Custom Settings\n1. Go to https://domusgpt.github.io/vib3-plus-engine/\n2. Configure the visualization (system, geometry, colors)\n3. Press Ctrl+L to copy shareable URL\n4. Use that URL in your iframe\n\n## Controlling from Parent Page\n```javascript\nconst iframe = document.querySelector('iframe');\niframe.contentWindow.switchSystem('holographic');\niframe.contentWindow.selectGeometry(11);\niframe.contentWindow.updateParameter('hue', 280);\n```",
+      "content_type": "text/markdown",
+      "keywords": ["embed", "iframe", "background", "html", "webpage", "page", "site"],
+      "also_inject": ["vib3-what-it-is"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-common-recipes",
+      "name": "Common Recipes",
       "priority": 300,
       "inject_mode": "on_match",
-      "also_inject": ["vib3-essential-facts"],
-      "content": "# Embedding VIB3+ in a Webpage\n\n## When to Use\n- Adding animated background to existing site\n- Quick prototypes without build tools\n\n## Steps\n\n### 1. Choose System\n`faceted`, `quantum`, or `holographic` (NOT polychora)\n\n### 2. Choose Geometry (0-23)\n```\ngeometry = coreIndex * 8 + baseIndex\nBase (0-7): tetra, hypercube, sphere, torus, klein, fractal, wave, crystal\nCore: 0=base, 1=hypersphere warp, 2=hypertetra warp\n```\n\n### 3. Embed via iframe\n```html\n<iframe \n  src=\"https://domusgpt.github.io/vib3-plus-engine/?system=holographic&geometry=5&hue=280\"\n  style=\"position:fixed;inset:0;width:100%;height:100%;border:none;z-index:-1\">\n</iframe>\n```\n\n### URL Parameters\n| Param | Range | Purpose |\n|-------|-------|--------|\n| system | faceted/quantum/holographic | Render engine |\n| geometry | 0-23 | Pattern type |\n| hue | 0-360 | Base color |\n| gridDensity | 5-100 | Detail |\n| intensity | 0-1 | Brightness |\n| speed | 0.1-3 | Animation rate |\n\nSee: docs/atlases/vib3/embedding.md",
+      "content": "# Common VIB3+ Recipes\n\n## Purple Holographic Background\n```javascript\nwindow.switchSystem('holographic');\nwindow.selectGeometry(11);  // Hypersphere Torus\nwindow.updateParameter('hue', 280);\nwindow.updateParameter('intensity', 0.6);\n```\n\n## Music Visualizer\n```javascript\nwindow.switchSystem('holographic');\nwindow.toggleAudio();  // Enable audio\nwindow.toggleAudioReactivity('bass', 'intensity', true);\nwindow.toggleAudioReactivity('mid', 'rotation', true);\n```\n\n## Mouse-Reactive Background\n```javascript\nwindow.switchSystem('quantum');\nwindow.selectGeometry(3);  // Torus\nwindow.toggleSystemReactivity('quantum', 'mouse', true);\n```\n\n## Slow Ambient Animation\n```javascript\nwindow.switchSystem('faceted');\nwindow.selectGeometry(5);  // Fractal\nwindow.updateParameter('speed', 0.3);\nwindow.updateParameter('chaos', 0.1);\n```\n\n## Geometry Cycling\n```javascript\nlet geo = 0;\nsetInterval(() => {\n  window.selectGeometry(geo);\n  geo = (geo + 1) % 24;\n}, 3000);\n```",
       "content_type": "text/markdown",
-      "keywords": ["embed", "iframe", "background", "url", "parameter", "simple"],
-      "inject_when": [],
-      "risk_tiers": []
-    },
-
-    {
-      "context_id": "vib3-workflow-customize",
-      "name": "Workflow: Customizing VIB3+",
-      "priority": 290,
-      "inject_mode": "on_match",
-      "also_inject": ["vib3-essential-facts"],
-      "content": "# Customizing VIB3+ Application\n\n## When to Use\n- Modify UI controls or layout\n- Add new features\n- Change defaults\n- Remove elements\n\n## Steps\n\n### 1. Clone\n```bash\ngit clone https://github.com/Domusgpt/vib3-plus-engine\n```\n\n### 2. Edit index.html\nEverything is in `index.html` (~42KB). No build tools.\n\n### 3. Use Global API\n```javascript\nwindow.switchSystem('holographic')  // faceted|quantum|holographic\nwindow.selectGeometry(5)            // 0-23\nwindow.updateParameter('hue', 280)  // any param\nwindow.randomizeAll()               // randomize\n```\n\n### 4. Test with Keyboard\n- `1-3` Switch systems (NOT 4)\n- `Alt+Q/W/E/R/A/S/D/F` Geometries\n- `Space` Randomize\n- `?` Help modal\n\nSee: docs/atlases/vib3/customizing.md",
-      "content_type": "text/markdown",
-      "keywords": ["customize", "clone", "modify", "ui", "controls", "index"],
-      "inject_when": [],
-      "risk_tiers": []
-    },
-
-    {
-      "context_id": "vib3-workflow-sdk",
-      "name": "Workflow: Building with SDK",
-      "priority": 280,
-      "inject_mode": "on_match",
-      "also_inject": ["vib3-essential-facts"],
-      "content": "# Building Custom Apps with VIB3+ SDK\n\n## When to Use\n- React/Vue/Flutter apps\n- Custom input (touch, motion, gamepad)\n- AR/XR applications\n\n## Steps\n\n### 1. Install\n```bash\nnpm install vib34d-xr-quaternion-sdk\n```\n\n### 2. Initialize\n```javascript\nimport { SensoryInputBridge, QuaternionFieldService, ShaderQuaternionSynchronizer } from 'vib34d-xr-quaternion-sdk';\n\nconst bridge = new SensoryInputBridge();\nconst fieldService = new QuaternionFieldService();\nconst sync = new ShaderQuaternionSynchronizer({\n  bridge,\n  fieldService,\n  onSystemUpdate: (params) => {\n    // params: {rot4dXY, rot4dXZ, rot4dYZ, rot4dXW, rot4dYW, rot4dZW}\n  }\n});\n```\n\n### 3. Connect Input\n```javascript\nbridge.publishPose(quaternion, position, confidence, source);\n```\n\nSee: docs/atlases/vib3/sdk.md",
-      "content_type": "text/markdown",
-      "keywords": ["sdk", "npm", "react", "vue", "flutter", "custom", "build", "ar", "xr"],
+      "keywords": ["recipe", "example", "how", "music", "visualizer", "background", "mouse", "audio"],
+      "also_inject": ["vib3-javascript-api"],
       "inject_when": [],
       "risk_tiers": []
     },
 
     {
       "context_id": "vib3-parameters-reference",
-      "name": "Parameter Reference",
+      "name": "Parameters Reference",
       "priority": 200,
       "inject_mode": "on_demand",
-      "content": "# VIB3+ Parameters\n\n## Rotation (6D)\n| Param | Range |\n|-------|-------|\n| rot4dXY | -6.28 to 6.28 |\n| rot4dXZ | -6.28 to 6.28 |\n| rot4dYZ | -6.28 to 6.28 |\n| rot4dXW | -6.28 to 6.28 |\n| rot4dYW | -6.28 to 6.28 |\n| rot4dZW | -6.28 to 6.28 |\n\n## Visual\n| Param | Range | Default |\n|-------|-------|--------|\n| gridDensity | 5-100 | 15 |\n| morphFactor | 0-2 | 1.0 |\n| chaos | 0-1 | 0.2 |\n| speed | 0.1-3 | 1.0 |\n\n## Color\n| Param | Range | Default |\n|-------|-------|--------|\n| hue | 0-360 | 200 |\n| saturation | 0-1 | 0.8 |\n| intensity | 0-1 | 0.5 |\n\n## Geometry Formula\n`geometry = coreIndex * 8 + baseIndex`\n\nBase 0-7: tetra, hypercube, sphere, torus, klein, fractal, wave, crystal\nCore 0-2: base, hypersphere, hypertetra",
+      "content": "# VIB3+ Parameters Reference\n\n## 6D Rotation (radians)\nAll range from -6.28 to 6.28 (≈ -2π to 2π)\n\n| Parameter | Planes |\n|-----------|--------|\n| rot4dXY | X-Y rotation |\n| rot4dXZ | X-Z rotation |\n| rot4dYZ | Y-Z rotation |\n| rot4dXW | X-W hyperspace |\n| rot4dYW | Y-W hyperspace |\n| rot4dZW | Z-W hyperspace |\n\n## Visual\n| Parameter | Range | Default | Effect |\n|-----------|-------|---------|--------|\n| gridDensity | 5-100 | 15 | Pattern detail |\n| morphFactor | 0-2 | 1.0 | Shape blending |\n| chaos | 0-1 | 0.2 | Organic randomness |\n| speed | 0.1-3 | 1.0 | Animation rate |\n\n## Color\n| Parameter | Range | Default | Effect |\n|-----------|-------|---------|--------|\n| hue | 0-360 | 200 | Base color (degrees) |\n| saturation | 0-1 | 0.8 | Color richness |\n| intensity | 0-1 | 0.5 | Brightness |\n\n## Usage\n```javascript\nwindow.updateParameter('paramName', value);\n```",
       "content_type": "text/markdown",
-      "keywords": ["parameter", "rotation", "color", "hue", "geometry", "reference"],
-      "inject_when": [],
-      "risk_tiers": []
-    },
-
-    {
-      "context_id": "vib3-common-tasks",
-      "name": "Common Tasks",
-      "priority": 250,
-      "inject_mode": "on_match",
-      "also_inject": ["vib3-essential-facts"],
-      "content": "# Common VIB3+ Tasks\n\n## Add Animated Background\n```html\n<div style=\"position:fixed;inset:0;z-index:-1\">\n  <iframe src=\"https://domusgpt.github.io/vib3-plus-engine/?system=holographic&geometry=3&hue=280\" style=\"width:100%;height:100%;border:none\"></iframe>\n</div>\n<div style=\"position:relative;z-index:1\">\n  <!-- Your content -->\n</div>\n```\n\n## Music Visualizer\nUse `system=holographic` with `?audioEnabled=true`\n\n## Cycle Geometries\n```javascript\nlet geo = 0;\nsetInterval(() => {\n  window.selectGeometry(geo);\n  geo = (geo + 1) % 24;\n}, 3000);\n```\n\n## Mouse Interaction\n```javascript\ndocument.addEventListener('mousemove', e => {\n  const x = (e.clientX / innerWidth - 0.5) * 6.28;\n  const y = (e.clientY / innerHeight - 0.5) * 6.28;\n  window.updateParameter('rot4dXW', x);\n  window.updateParameter('rot4dYW', y);\n});\n```",
-      "content_type": "text/markdown",
-      "keywords": ["task", "background", "visualizer", "mouse", "music", "how"],
-      "inject_when": [],
-      "risk_tiers": []
-    },
-
-    {
-      "context_id": "vib3-docs-location",
-      "name": "Documentation Locations",
-      "priority": 150,
-      "inject_mode": "on_match",
-      "content": "# VIB3+ Documentation\n\n## Bundled Atlas Docs\n- docs/atlases/vib3/README.md\n- docs/atlases/vib3/embedding.md\n- docs/atlases/vib3/customizing.md\n- docs/atlases/vib3/sdk.md\n\n## Source Repositories\n\n**vib3-plus-engine** (App): https://github.com/Domusgpt/vib3-plus-engine\n- CLAUDE.md - Development status\n- TESTING_GUIDE.md - Testing\n- 24-GEOMETRY-6D-ROTATION-SUMMARY.md - Technical details\n\n**vib34d-vib3plus** (SDK): https://github.com/Domusgpt/vib34d-vib3plus\n- QUICKSTART.md\n- WEB_APP_GUIDE.md\n- DEVELOPER_GUIDE.md\n- DOCS/ folder - 20+ guides\n\n## Live Demo\nhttps://domusgpt.github.io/vib3-plus-engine/",
-      "content_type": "text/markdown",
-      "keywords": ["documentation", "docs", "guide", "help", "where", "find", "repo"],
+      "keywords": ["parameter", "range", "value", "rotation", "color", "hue", "speed", "reference"],
+      "also_inject": [],
       "inject_when": [],
       "risk_tiers": []
     }
