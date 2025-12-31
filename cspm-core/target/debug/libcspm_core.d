@@ -1,0 +1,1 @@
+/home/user/CRA-Core/cspm-core/target/debug/libcspm_core.rlib: /home/user/CRA-Core/cspm-core/src/channel.rs /home/user/CRA-Core/cspm-core/src/codec.rs /home/user/CRA-Core/cspm-core/src/error.rs /home/user/CRA-Core/cspm-core/src/lattice.rs /home/user/CRA-Core/cspm-core/src/lib.rs /home/user/CRA-Core/cspm-core/src/quaternion.rs /home/user/CRA-Core/cspm-core/src/spinor.rs
