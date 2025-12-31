@@ -37,6 +37,7 @@ pub mod polytope;
 pub mod modulation;
 pub mod crypto;
 pub mod trace_integration;
+pub mod simulation;
 
 // Re-exports for convenience
 pub use quaternion::Quaternion;
@@ -44,6 +45,7 @@ pub use polytope::{Hexacosichoron, Vertex};
 pub use modulation::{CspmEncoder, CspmDecoder, OpticalState, StokesVector};
 pub use crypto::{HashChain, ChainState};
 pub use trace_integration::{TraceEvent, CspmTraceEmitter};
+pub use simulation::{ChannelModel, BerSimulator, BerCurve};
 
 /// Protocol version
 pub const CSPM_VERSION: &str = "1.0";
