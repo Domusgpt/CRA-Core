@@ -90,6 +90,9 @@ pub use trace::{
 pub use atlas::{
     AtlasManifest, AtlasAction, AtlasPolicy, AtlasCapability, PolicyType,
     AtlasLoader,
+    // Steward config
+    StewardConfig, AccessConfig, AccessType, DeliveryConfig, DeliveryMode,
+    NotificationConfig, NotificationTrigger, MarketplaceConfig,
 };
 pub use error::{CRAError, Result, ErrorCategory, ErrorResponse, ErrorDetail};
 pub use storage::{StorageBackend, InMemoryStorage, FileStorage, NullStorage};

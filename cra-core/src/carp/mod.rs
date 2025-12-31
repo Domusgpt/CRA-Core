@@ -24,11 +24,19 @@ mod request;
 mod resolution;
 mod policy;
 mod resolver;
+mod checkpoint;
 
 pub use request::{CARPRequest, RiskTier};
 pub use resolution::{CARPResolution, Decision, AllowedAction, DeniedAction, Constraint, ConstraintType, ContextBlock};
 pub use policy::{PolicyEvaluator, PolicyResult};
 pub use resolver::Resolver;
+pub use checkpoint::{
+    CheckpointType, CheckpointConfig, CheckpointEvaluator,
+    TriggeredCheckpoint, TriggerData, SessionCheckpointState,
+    SessionStartConfig, SessionEndConfig, KeywordMatchConfig,
+    ActionPreConfig, ActionCheckpointConfig, RiskThresholdConfig,
+    TimeIntervalConfig, CountIntervalConfig, MatchMode,
+};
 
 /// CARP protocol version
 pub const VERSION: &str = "1.0";

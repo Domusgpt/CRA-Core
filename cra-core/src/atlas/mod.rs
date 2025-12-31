@@ -12,6 +12,7 @@
 mod manifest;
 mod loader;
 mod validator;
+mod steward;
 
 pub use manifest::{
     AtlasManifest, AtlasAction, AtlasPolicy, AtlasCapability, AtlasContextPack,
@@ -19,6 +20,14 @@ pub use manifest::{
 };
 pub use loader::AtlasLoader;
 pub use validator::AtlasValidator;
+pub use steward::{
+    StewardConfig, AccessConfig, AccessType, RateLimitConfig,
+    DeliveryConfig, DeliveryMode, DeliveryEndpoints, FallbackConfig, CachingConfig,
+    NotificationConfig, NotificationChannels, NotificationTrigger,
+    AnalyticsConfig, AnalyticsType, AnalyticsExport, ExportFormat, ExportFrequency,
+    BrandingConfig, MarketplaceConfig, Visibility, MarketplaceListing,
+    PricingConfig, PricingModel, FreeTierConfig, PaidTier,
+};
 
 /// Atlas format version
 pub const VERSION: &str = "1.0";
