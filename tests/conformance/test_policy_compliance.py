@@ -113,6 +113,46 @@ class TestDenyPatternRuleCompliance:
         decision = rule.evaluate(context)
         assert decision is None  # Allowed
 
+    def test_deny_rule_preserves_original_target_with_normalized_detail(self):
+        """Normalized matches should retain the original value in violation details."""
+        rule = DenyPatternRule(
+            rule_id="test-deny",
+            patterns=["*.production.*"],
+        )
+        context = PolicyContext(
+            session_id=uuid4(),
+            principal_type="user",
+            principal_id="test-user",
+            scopes=[],
+            risk_tier="low",
+            goal="Deploy to Production environment!",
+        )
+        decision = rule.evaluate(context)
+        assert decision is not None
+        violation = decision.violations[0]
+        assert violation.details["matched"] == "Deploy to Production environment!"
+        assert violation.details.get("normalized_match") == "deploy.to.production.environment"
+
+    def test_deny_rule_does_not_over_normalize_scoped_identifiers(self):
+        """Identifiers already scoped with dots should not report normalized matches."""
+        rule = DenyPatternRule(
+            rule_id="test-deny",
+            patterns=["*.production.*"],
+        )
+        context = PolicyContext(
+            session_id=uuid4(),
+            principal_type="user",
+            principal_id="test-user",
+            scopes=[],
+            risk_tier="low",
+            action_id="infra.production.deploy",
+            goal="Deploy",
+        )
+        decision = rule.evaluate(context)
+        assert decision is not None
+        violation = decision.violations[0]
+        assert "normalized_match" not in violation.details
+
 
 class TestRiskTierApprovalRuleCompliance:
     """Tests for risk tier approval rule compliance."""
