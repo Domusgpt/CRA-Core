@@ -1,0 +1,156 @@
+{
+  "atlas_version": "1.0",
+  "atlas_id": "dev.vib3.webpage-development",
+  "name": "VIB3+ Development Atlas",
+  "version": "6.0.0",
+  "description": "Verified context for building with VIB3+ shader visualization engine",
+  "authors": ["CRA Development"],
+  "license": "MIT",
+  "domains": ["webgl", "visualization", "shader", "web-design"],
+
+  "sources": {
+    "repositories": [
+      "https://github.com/Domusgpt/vib3-plus-engine",
+      "https://github.com/Domusgpt/vib34d-vib3plus"
+    ],
+    "documentation": "https://github.com/Domusgpt/vib3-plus-engine#readme",
+    "demo": "https://domusgpt.github.io/vib3-plus-engine/"
+  },
+
+  "capabilities": [],
+
+  "context_blocks": [
+    {
+      "context_id": "vib3-what-it-is",
+      "name": "What VIB3+ Is",
+      "priority": 400,
+      "inject_mode": "always",
+      "content": "# What VIB3+ Is\n\nVIB3+ is a **shader-based visualization engine** for web pages. It creates animated backgrounds using WebGL shaders.\n\n## It Creates\n- Landing page animated backgrounds\n- Portfolio site effects\n- Music visualizers (audio-reactive)\n- Interactive art\n\n## Three Working Systems\n| Key | System | Style |\n|-----|--------|-------|\n| 1 | Faceted | 2D geometric patterns |\n| 2 | Quantum | 3D lattice/velocity effects |\n| 3 | Holographic | Audio-reactive shimmers |\n\n**Key 4 (Polychora) exists in UI but is a placeholder - not functional.**\n\n## Shared Architecture\nAll systems share:\n- Same 24 geometries (8 base × 3 core)\n- Same 6D rotation parameters\n- Same color/visual parameters\n- Same API functions\n\n## Live Demo\nhttps://domusgpt.github.io/vib3-plus-engine/",
+      "content_type": "text/markdown",
+      "keywords": ["vib3", "what", "is", "about", "system", "create", "does"],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-geometry-system",
+      "name": "Geometry System",
+      "priority": 380,
+      "inject_mode": "on_match",
+      "content": "# VIB3+ Geometry System\n\nAll systems (faceted, quantum, holographic) share the same 24 geometries.\n\n## Formula\n`geometry = coreIndex * 8 + baseIndex`\n\n## 8 Base Geometries\n| Index | Name | Shortcut |\n|-------|------|----------|\n| 0 | Tetrahedron | Alt+Q |\n| 1 | Hypercube | Alt+W |\n| 2 | Sphere | Alt+E |\n| 3 | Torus | Alt+R |\n| 4 | Klein Bottle | Alt+A |\n| 5 | Fractal | Alt+S |\n| 6 | Wave | Alt+D |\n| 7 | Crystal | Alt+F |\n\n## 3 Core Warps\n| Core | ×8 | Range | Shortcut |\n|------|-----|-------|----------|\n| Base | 0 | 0-7 | Alt+1 |\n| Hypersphere | 8 | 8-15 | Alt+2 |\n| Hypertetra | 16 | 16-23 | Alt+3 |\n\n## Examples\n- Torus base: `0×8 + 3 = 3`\n- Torus + hypersphere: `1×8 + 3 = 11`\n- Torus + hypertetra: `2×8 + 3 = 19`\n\n## API\n```javascript\nwindow.selectGeometry(11);\n```\n\n## Navigation\n- Arrow keys ←/→ cycle through 0-23\n- Arrow keys ↑/↓ cycle systems",
+      "content_type": "text/markdown",
+      "keywords": ["geometry", "index", "formula", "torus", "sphere", "hypercube", "select", "base", "core"],
+      "also_inject": ["vib3-what-it-is"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-javascript-api",
+      "name": "JavaScript API",
+      "priority": 360,
+      "inject_mode": "on_match",
+      "content": "# VIB3+ JavaScript API\n\nAll functions are on `window.*`:\n\n## Core Functions\n```javascript\n// Switch system\nwindow.switchSystem('holographic')  // 'faceted', 'quantum', 'holographic', 'polychora'\n\n// Select geometry (0-23)\nwindow.selectGeometry(11)\n\n// Update parameter\nwindow.updateParameter('hue', 280)\nwindow.updateParameter('speed', 1.5)\nwindow.updateParameter('rot4dXW', 3.14)\n\n// Randomize / Reset\nwindow.randomizeAll()\nwindow.resetAll()\n```\n\n## Parameters\n| Parameter | Range | Default |\n|-----------|-------|--------|\n| hue | 0-360 | 200 |\n| saturation | 0-1 | 0.8 |\n| intensity | 0-1 | 0.5 |\n| gridDensity | 5-100 | 15 |\n| morphFactor | 0-2 | 1.0 |\n| chaos | 0-1 | 0.2 |\n| speed | 0.1-3 | 1.0 |\n| rot4dXY/XZ/YZ/XW/YW/ZW | -6.28 to 6.28 | 0 |\n\n## Toggles\n```javascript\nwindow.toggleAudio()           // Audio reactivity\nwindow.toggleDeviceTilt()      // 4D device rotation\nwindow.toggleInteractivity()   // Mouse interaction\n```\n\n## Gallery\n```javascript\nwindow.saveToGallery()\nwindow.openGallery()\n```",
+      "content_type": "text/markdown",
+      "keywords": ["api", "javascript", "function", "window", "switch", "update", "parameter", "code"],
+      "also_inject": ["vib3-what-it-is"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-keyboard-shortcuts",
+      "name": "Keyboard Shortcuts",
+      "priority": 340,
+      "inject_mode": "on_match",
+      "content": "# VIB3+ Keyboard Shortcuts\n\n## System & Geometry\n| Key | Action |\n|-----|--------|\n| 1-4 | Switch systems |\n| Alt+1-3 | Select core (Base, Hypersphere, Hypertetra) |\n| Alt+Q/W/E/R | Base geometries 0-3 |\n| Alt+A/S/D/F | Base geometries 4-7 |\n| ←/→ | Navigate geometries |\n| ↑/↓ | Cycle systems |\n\n## Actions\n| Key | Action |\n|-----|--------|\n| H | Show help modal |\n| Ctrl+R | Randomize |\n| Ctrl+Shift+Z | Reset all |\n| Ctrl+Z / Ctrl+Y | Undo / Redo |\n\n## Save & Share\n| Key | Action |\n|-----|--------|\n| Ctrl+S | Save to gallery |\n| Ctrl+G | Open gallery |\n| Ctrl+L | Copy shareable URL |\n\n## Toggles\n| Key | Action |\n|-----|--------|\n| A | Audio reactivity |\n| T | Device tilt |\n| I | Interactivity menu |\n| F | Fullscreen |\n| P | Performance stats |\n\n## UI\n| Key | Action |\n|-----|--------|\n| Space / Ctrl+B | Toggle bottom panel |\n| Ctrl+1-5 | Switch tabs |",
+      "content_type": "text/markdown",
+      "keywords": ["keyboard", "shortcut", "key", "ctrl", "alt", "press"],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-embed-iframe",
+      "name": "Embedding with iframe",
+      "priority": 350,
+      "inject_mode": "on_match",
+      "content": "# Embedding VIB3+ in a Webpage\n\n## Full-Page Background\n```html\n<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    .vib3-bg {\n      position: fixed;\n      inset: 0;\n      z-index: -1;\n    }\n    .vib3-bg iframe {\n      width: 100%;\n      height: 100%;\n      border: none;\n    }\n    .content {\n      position: relative;\n      z-index: 1;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"vib3-bg\">\n    <iframe src=\"https://domusgpt.github.io/vib3-plus-engine/\"></iframe>\n  </div>\n  <div class=\"content\">\n    <h1>Your Content</h1>\n  </div>\n</body>\n</html>\n```\n\n## With Custom Settings\n1. Go to https://domusgpt.github.io/vib3-plus-engine/\n2. Configure the visualization (system, geometry, colors)\n3. Press Ctrl+L to copy shareable URL\n4. Use that URL in your iframe\n\n## Controlling from Parent Page\n```javascript\nconst iframe = document.querySelector('iframe');\niframe.contentWindow.switchSystem('holographic');\niframe.contentWindow.selectGeometry(11);\niframe.contentWindow.updateParameter('hue', 280);\n```",
+      "content_type": "text/markdown",
+      "keywords": ["embed", "iframe", "background", "html", "webpage", "page", "site"],
+      "also_inject": ["vib3-what-it-is"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-common-recipes",
+      "name": "Common Recipes",
+      "priority": 300,
+      "inject_mode": "on_match",
+      "content": "# Common VIB3+ Recipes\n\n## Purple Holographic Background\n```javascript\nwindow.switchSystem('holographic');\nwindow.selectGeometry(11);  // Hypersphere Torus\nwindow.updateParameter('hue', 280);\nwindow.updateParameter('intensity', 0.6);\n```\n\n## Music Visualizer\n```javascript\nwindow.switchSystem('holographic');\nwindow.toggleAudio();  // Enable audio\nwindow.toggleAudioReactivity('bass', 'intensity', true);\nwindow.toggleAudioReactivity('mid', 'rotation', true);\n```\n\n## Mouse-Reactive Background\n```javascript\nwindow.switchSystem('quantum');\nwindow.selectGeometry(3);  // Torus\nwindow.toggleSystemReactivity('quantum', 'mouse', true);\n```\n\n## Slow Ambient Animation\n```javascript\nwindow.switchSystem('faceted');\nwindow.selectGeometry(5);  // Fractal\nwindow.updateParameter('speed', 0.3);\nwindow.updateParameter('chaos', 0.1);\n```\n\n## Geometry Cycling\n```javascript\nlet geo = 0;\nsetInterval(() => {\n  window.selectGeometry(geo);\n  geo = (geo + 1) % 24;\n}, 3000);\n```",
+      "content_type": "text/markdown",
+      "keywords": ["recipe", "example", "how", "music", "visualizer", "background", "mouse", "audio"],
+      "also_inject": ["vib3-javascript-api"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-parameters-reference",
+      "name": "Parameters Reference",
+      "priority": 200,
+      "inject_mode": "on_demand",
+      "content": "# VIB3+ Parameters Reference\n\nAll systems share the same parameter set.\n\n## 6D Rotation (radians: -6.28 to 6.28)\n| Parameter | Rotation Plane |\n|-----------|----------------|\n| rot4dXY | X-Y plane |\n| rot4dXZ | X-Z plane |\n| rot4dYZ | Y-Z plane |\n| rot4dXW | X-W hyperspace |\n| rot4dYW | Y-W hyperspace |\n| rot4dZW | Z-W hyperspace |\n\n## Visual Parameters\n| Parameter | Range | Default |\n|-----------|-------|--------|\n| gridDensity | 5-100 | 15 |\n| morphFactor | 0-2 | 1.0 |\n| chaos | 0-1 | 0.2 |\n| speed | 0.1-3 | 1.0 |\n\n## Color Parameters\n| Parameter | Range | Default |\n|-----------|-------|--------|\n| hue | 0-360 | 200 |\n| saturation | 0-1 | 0.8 |\n| intensity | 0-1 | 0.5 |\n\n## Usage\n```javascript\nwindow.updateParameter('paramName', value);\n```\n\n## Note\nThese are the core documented parameters. The system may accept additional parameters - experiment with the UI sliders and inspect window.userParameterState to discover more.",
+      "content_type": "text/markdown",
+      "keywords": ["parameter", "range", "value", "rotation", "color", "hue", "speed", "reference"],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-audio-reactivity",
+      "name": "Audio Reactivity",
+      "priority": 320,
+      "inject_mode": "on_match",
+      "content": "# VIB3+ Audio Reactivity\n\nHolographic system is optimized for audio, but all systems support it.\n\n## Enable Audio\n```javascript\nwindow.toggleAudio();  // Toggle on/off\n```\nOr press `A` key.\n\n## Three Frequency Bands\n| Band | Frequency | Default Sensitivity |\n|------|-----------|--------------------|\n| LOW | Bass | 30% |\n| MID | Mids | 100% |\n| HIGH | Treble | 200% |\n\n## What Audio Affects\nEach band can independently control:\n- Color (hue shifts)\n- Geometry (shape morphing)\n- Movement (rotation speed)\n\n## API\n```javascript\n// Toggle audio reactivity per band/effect\nwindow.toggleAudioReactivity('bass', 'intensity', true);\nwindow.toggleAudioReactivity('mid', 'rotation', true);\nwindow.toggleAudioReactivity('high', 'color', true);\n```\n\n## Music Visualizer Setup\n```javascript\nwindow.switchSystem('holographic');\nwindow.toggleAudio();\n// Bass drives intensity, mids drive rotation\nwindow.toggleAudioReactivity('bass', 'intensity', true);\nwindow.toggleAudioReactivity('mid', 'rotation', true);\n```",
+      "content_type": "text/markdown",
+      "keywords": ["audio", "music", "sound", "visualizer", "bass", "frequency", "reactive"],
+      "also_inject": ["vib3-what-it-is"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-state-debugging",
+      "name": "State & Debugging",
+      "priority": 180,
+      "inject_mode": "on_demand",
+      "content": "# VIB3+ State & Debugging\n\n## Global State Objects\n```javascript\nwindow.currentSystem        // 'faceted', 'quantum', 'holographic'\nwindow.userParameterState   // All current parameter values\nwindow.geometries           // Geometry definitions per system\nwindow.moduleReady          // Initialization complete flag\n```\n\n## Inspect Current State\n```javascript\n// Get all reactivity settings\nwindow.getCurrentReactivityState()\n// Returns: {system, mouse, click, scroll, audio, interactivity, deviceTilt}\n\n// See all parameters\nconsole.log(window.userParameterState);\n```\n\n## Canvas Layer IDs\nEach system has its own layer container:\n- `#vib34dLayers` (faceted)\n- `#quantumLayers` (quantum)\n- `#holographicLayers` (holographic)\n- `#polychoraLayers` (polychora - placeholder)\n\n## Performance Stats\nPress `P` to show FPS, frame time, memory, draw calls.\nPress `M` to cycle quality modes (Auto/Low/Medium/High/Ultra).\n\n## Discover More Parameters\nThe documented parameters are the core set. To find additional parameters:\n1. Open browser DevTools\n2. Inspect `window.userParameterState`\n3. Watch for changes as you use UI sliders\n4. Experiment with `window.updateParameter('name', value)`",
+      "content_type": "text/markdown",
+      "keywords": ["state", "debug", "inspect", "console", "devtools", "window", "parameter"],
+      "also_inject": [],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+
+    {
+      "context_id": "vib3-interactivity",
+      "name": "Mouse & Touch Interactivity",
+      "priority": 310,
+      "inject_mode": "on_match",
+      "content": "# VIB3+ Interactivity\n\n## Enable Interactivity\n```javascript\nwindow.toggleInteractivity();  // Opens menu\n```\nOr press `I` key.\n\n## Reactivity Types\nEach system can respond to:\n- **Mouse** - Cursor position affects rotation\n- **Click** - Clicks trigger effects\n- **Scroll** - Scroll wheel affects parameters\n\n## API\n```javascript\n// Toggle per-system reactivity\nwindow.toggleSystemReactivity('quantum', 'mouse', true);\nwindow.toggleSystemReactivity('holographic', 'click', true);\nwindow.toggleSystemReactivity('faceted', 'scroll', true);\n```\n\n## Device Tilt (Mobile)\n```javascript\nwindow.toggleDeviceTilt();  // 4D rotation from device orientation\n```\nOr press `T` key.\n\n## Mouse-Reactive Background Example\n```javascript\nwindow.switchSystem('quantum');\nwindow.selectGeometry(3);\nwindow.toggleSystemReactivity('quantum', 'mouse', true);\n```",
+      "content_type": "text/markdown",
+      "keywords": ["mouse", "touch", "click", "scroll", "tilt", "device", "interactive", "cursor"],
+      "also_inject": ["vib3-what-it-is"],
+      "inject_when": [],
+      "risk_tiers": []
+    }
+  ],
+
+  "policies": [],
+  "actions": []
+}

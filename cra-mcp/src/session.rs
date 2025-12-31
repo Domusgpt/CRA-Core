@@ -228,19 +228,30 @@ impl SessionManager {
     }
 
     /// Request context for a need
-    pub fn request_context(&self, session_id: &str, need: &str, hints: Option<Vec<String>>) -> McpResult<Vec<MatchedContext>> {
-        let resolver = self.resolver.read()
+    pub fn request_context(&self, session_id: &str, need: &str, _hints: Option<Vec<String>>) -> McpResult<Vec<MatchedContext>> {
+        let mut resolver = self.resolver.write()
             .map_err(|_| McpError::Internal("Lock poisoned".to_string()))?;
 
-        // For now, search contexts by keyword matching
-        // In the future, this would use the context registry more fully
-        let mut matched = Vec::new();
+        // Use CARP resolve to get context blocks
+        // The goal field is used for context matching
+        let request = cra_core::CARPRequest::new(
+            session_id.to_string(),
+            "context-request".to_string(),
+            need.to_string(),
+        );
 
-        // Get all context blocks from loaded atlases
-        for atlas_id in resolver.list_atlases() {
-            // TODO: Access context registry through resolver
-            // For now, return basic context info
-        }
+        let resolution = resolver.resolve(&request)?;
+
+        // Convert context blocks to MatchedContext
+        let matched: Vec<MatchedContext> = resolution.context_blocks.iter().map(|block| {
+            MatchedContext {
+                context_id: block.block_id.clone(),
+                name: block.name.clone(),
+                content: block.content.clone(),
+                priority: block.priority,
+                match_score: 1.0, // Perfect match since resolver already filtered
+            }
+        }).collect();
 
         Ok(matched)
     }
