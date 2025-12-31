@@ -1,0 +1,209 @@
+name: CRA Comparative Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_description:
+        description: 'Task for agents to complete'
+        required: true
+        default: 'Create a SoundWave music streaming landing page with VIB3+ audio-reactive background'
+
+jobs:
+  # Agent WITHOUT CRA - raw Claude with no domain context
+  test-without-cra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout test repo
+        uses: actions/checkout@v4
+
+      - name: Clone VIB3+ for reference
+        run: |
+          git clone https://github.com/user/vib3-plus-engine.git vib3-reference
+
+      - name: Create task file
+        run: |
+          cat > TASK.md << 'EOF'
+          # Task
+          ${{ github.event.inputs.task_description }}
+
+          # Requirements
+          1. Create a complete HTML file
+          2. Use VIB3+ for the animated background
+          3. Make it audio-reactive for a music streaming service
+          4. Include proper styling and a call-to-action
+
+          # Output
+          Save your result to: output/index.html
+          Save your report to: output/REPORT.md
+
+          # Self-Report Template
+          In REPORT.md, document:
+          - What information sources you used
+          - What challenges you encountered
+          - What you had to guess or assume
+          - Whether your solution would actually work
+          - Confidence level (1-10)
+          EOF
+          mkdir -p output
+
+      - name: Run Claude WITHOUT CRA
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Install Claude Code CLI
+          npm install -g @anthropic-ai/claude-code
+
+          # Run agent with NO MCP servers configured
+          claude-code --print "Read TASK.md and complete the task. Be thorough in your REPORT.md about what you knew vs had to guess."
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: without-cra-output
+          path: output/
+
+  # Agent WITH CRA - Claude connected to CRA MCP server
+  test-with-cra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout test repo
+        uses: actions/checkout@v4
+
+      - name: Clone VIB3+ for reference
+        run: |
+          git clone https://github.com/user/vib3-plus-engine.git vib3-reference
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build CRA MCP Server
+        run: |
+          cargo build --release -p cra-mcp
+
+      - name: Create task file
+        run: |
+          cat > TASK.md << 'EOF'
+          # Task
+          ${{ github.event.inputs.task_description }}
+
+          # Requirements
+          1. Create a complete HTML file
+          2. Use VIB3+ for the animated background
+          3. Make it audio-reactive for a music streaming service
+          4. Include proper styling and a call-to-action
+
+          # CRA Tools Available
+          You have access to CRA governance tools:
+          - cra_start_session: Start governed session
+          - cra_request_context: Ask for domain knowledge
+          - cra_report_action: Report what you're doing
+          - cra_feedback: Report if context was helpful
+
+          # Output
+          Save your result to: output/index.html
+          Save your report to: output/REPORT.md
+
+          # Self-Report Template
+          In REPORT.md, document:
+          - What CRA context you received
+          - How CRA context helped (or didn't)
+          - What you had to guess despite CRA
+          - Whether your solution would actually work
+          - Confidence level (1-10)
+          EOF
+          mkdir -p output
+
+      - name: Configure Claude with CRA MCP
+        run: |
+          # Create MCP config for Claude Code
+          mkdir -p ~/.config/claude-code
+          cat > ~/.config/claude-code/config.json << EOF
+          {
+            "mcpServers": {
+              "cra": {
+                "command": "./target/release/cra-mcp-server",
+                "args": ["-a", "atlases"]
+              }
+            }
+          }
+          EOF
+
+      - name: Run Claude WITH CRA
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Install Claude Code CLI
+          npm install -g @anthropic-ai/claude-code
+
+          # Run agent WITH CRA MCP server
+          claude-code --print "Read TASK.md and complete the task. Use cra_start_session first, then cra_request_context to get VIB3+ information. Document everything in REPORT.md."
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: with-cra-output
+          path: output/
+
+  # Compare results
+  compare-results:
+    needs: [test-without-cra, test-with-cra]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download without-CRA results
+        uses: actions/download-artifact@v4
+        with:
+          name: without-cra-output
+          path: without-cra/
+
+      - name: Download with-CRA results
+        uses: actions/download-artifact@v4
+        with:
+          name: with-cra-output
+          path: with-cra/
+
+      - name: Generate comparison report
+        run: |
+          echo "# CRA Comparative Test Results" > COMPARISON.md
+          echo "" >> COMPARISON.md
+          echo "## Task" >> COMPARISON.md
+          echo "${{ github.event.inputs.task_description }}" >> COMPARISON.md
+          echo "" >> COMPARISON.md
+
+          echo "## Without CRA Report" >> COMPARISON.md
+          echo '```' >> COMPARISON.md
+          cat without-cra/REPORT.md >> COMPARISON.md || echo "No report generated"
+          echo '```' >> COMPARISON.md
+          echo "" >> COMPARISON.md
+
+          echo "## With CRA Report" >> COMPARISON.md
+          echo '```' >> COMPARISON.md
+          cat with-cra/REPORT.md >> COMPARISON.md || echo "No report generated"
+          echo '```' >> COMPARISON.md
+          echo "" >> COMPARISON.md
+
+          echo "## Code Comparison" >> COMPARISON.md
+          echo "### Without CRA - index.html" >> COMPARISON.md
+          echo '```html' >> COMPARISON.md
+          head -100 without-cra/index.html >> COMPARISON.md || echo "No output"
+          echo '```' >> COMPARISON.md
+          echo "" >> COMPARISON.md
+
+          echo "### With CRA - index.html" >> COMPARISON.md
+          echo '```html' >> COMPARISON.md
+          head -100 with-cra/index.html >> COMPARISON.md || echo "No output"
+          echo '```' >> COMPARISON.md
+
+          cat COMPARISON.md
+
+      - name: Upload comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: comparison-report
+          path: COMPARISON.md

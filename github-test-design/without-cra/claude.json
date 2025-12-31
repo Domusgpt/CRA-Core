@@ -1,0 +1,5 @@
+{
+  "name": "without-cra-test",
+  "description": "Test agent WITHOUT CRA governance",
+  "mcpServers": {}
+}
