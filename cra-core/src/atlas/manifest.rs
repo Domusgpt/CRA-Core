@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::VERSION;
+use super::steward::StewardConfig;
+use crate::carp::{StewardCheckpointDef, CheckpointTrigger};
 
 /// The main Atlas manifest structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,9 +39,17 @@ pub struct AtlasManifest {
     #[serde(default)]
     pub domains: Vec<String>,
 
+    /// Steward configuration (access, delivery, notifications)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub steward: Option<StewardConfig>,
+
     /// Capability groupings
     #[serde(default)]
     pub capabilities: Vec<AtlasCapability>,
+
+    /// Steward-defined checkpoints (interactive gates, guidance injection)
+    #[serde(default)]
+    pub checkpoints: Vec<StewardCheckpointDef>,
 
     /// Context packs (file-based)
     #[serde(default)]
@@ -101,6 +111,75 @@ impl AtlasManifest {
             .unwrap_or_default()
     }
 
+    /// Get a checkpoint by ID
+    pub fn get_checkpoint(&self, checkpoint_id: &str) -> Option<&StewardCheckpointDef> {
+        self.checkpoints
+            .iter()
+            .find(|c| c.checkpoint_id == checkpoint_id)
+    }
+
+    /// Get all checkpoints that should trigger on session start
+    pub fn get_session_start_checkpoints(&self) -> Vec<&StewardCheckpointDef> {
+        self.checkpoints
+            .iter()
+            .filter(|c| matches!(c.trigger, CheckpointTrigger::SessionStart))
+            .collect()
+    }
+
+    /// Get all checkpoints for a given action pattern
+    pub fn get_action_checkpoints(&self, action_id: &str) -> Vec<&StewardCheckpointDef> {
+        self.checkpoints
+            .iter()
+            .filter(|c| {
+                match &c.trigger {
+                    CheckpointTrigger::ActionPre { patterns } |
+                    CheckpointTrigger::ActionPost { patterns } => {
+                        patterns.iter().any(|p| Self::pattern_matches(p, action_id))
+                    }
+                    _ => false,
+                }
+            })
+            .collect()
+    }
+
+    /// Check if a pattern matches an action ID
+    /// Supports wildcards: "*.delete" matches "user.delete", "ticket.*" matches "ticket.get"
+    fn pattern_matches(pattern: &str, action_id: &str) -> bool {
+        if pattern == action_id {
+            return true;
+        }
+        if pattern.starts_with('*') {
+            // *.delete matches user.delete
+            let suffix = pattern.trim_start_matches('*');
+            action_id.ends_with(suffix)
+        } else if pattern.ends_with('*') {
+            // ticket.* matches ticket.get
+            let prefix = pattern.trim_end_matches('*');
+            action_id.starts_with(prefix)
+        } else if pattern.contains('*') {
+            // More complex patterns - simple glob matching
+            let parts: Vec<&str> = pattern.split('*').collect();
+            if parts.len() == 2 {
+                action_id.starts_with(parts[0]) && action_id.ends_with(parts[1])
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Get all checkpoints for a given capability
+    pub fn get_capability_checkpoints(&self, capability_id: &str) -> Vec<&StewardCheckpointDef> {
+        self.checkpoints
+            .iter()
+            .filter(|c| {
+                matches!(&c.trigger, CheckpointTrigger::CapabilityAccess { capability_ids }
+                    if capability_ids.contains(&capability_id.to_string()))
+            })
+            .collect()
+    }
+
     /// Validate the manifest structure
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errors = vec![];
@@ -154,6 +233,47 @@ impl AtlasManifest {
             }
         }
 
+        // Validate checkpoints have unique IDs
+        let mut checkpoint_ids: Vec<&str> = self.checkpoints.iter().map(|c| c.checkpoint_id.as_str()).collect();
+        checkpoint_ids.sort();
+        for window in checkpoint_ids.windows(2) {
+            if window[0] == window[1] {
+                errors.push(format!("Duplicate checkpoint_id: {}", window[0]));
+            }
+        }
+
+        // Validate checkpoint context references exist
+        for checkpoint in &self.checkpoints {
+            for context_id in &checkpoint.inject_contexts {
+                let context_exists = self.context_blocks.iter().any(|b| &b.context_id == context_id)
+                    || self.context_packs.iter().any(|p| &p.pack_id == context_id);
+                if !context_exists {
+                    errors.push(format!(
+                        "Checkpoint {} references unknown context: {}",
+                        checkpoint.checkpoint_id, context_id
+                    ));
+                }
+            }
+
+            // Validate capability references
+            for cap_id in &checkpoint.unlock_capabilities {
+                if self.get_capability(cap_id).is_none() {
+                    errors.push(format!(
+                        "Checkpoint {} references unknown capability to unlock: {}",
+                        checkpoint.checkpoint_id, cap_id
+                    ));
+                }
+            }
+            for cap_id in &checkpoint.lock_capabilities {
+                if self.get_capability(cap_id).is_none() {
+                    errors.push(format!(
+                        "Checkpoint {} references unknown capability to lock: {}",
+                        checkpoint.checkpoint_id, cap_id
+                    ));
+                }
+            }
+        }
+
         if errors.is_empty() {
             Ok(())
         } else {
@@ -180,7 +300,9 @@ impl AtlasManifestBuilder {
                 authors: vec![],
                 license: None,
                 domains: vec![],
+                steward: None,
                 capabilities: vec![],
+                checkpoints: vec![],
                 context_packs: vec![],
                 context_blocks: vec![],
                 policies: vec![],
@@ -189,6 +311,11 @@ impl AtlasManifestBuilder {
                 sources: None,
             },
         }
+    }
+
+    pub fn steward(mut self, steward: StewardConfig) -> Self {
+        self.manifest.steward = Some(steward);
+        self
     }
 
     pub fn sources(mut self, sources: AtlasSources) -> Self {
@@ -233,6 +360,16 @@ impl AtlasManifestBuilder {
 
     pub fn add_action(mut self, action: AtlasAction) -> Self {
         self.manifest.actions.push(action);
+        self
+    }
+
+    pub fn add_checkpoint(mut self, checkpoint: StewardCheckpointDef) -> Self {
+        self.manifest.checkpoints.push(checkpoint);
+        self
+    }
+
+    pub fn add_context_block(mut self, block: AtlasContextBlock) -> Self {
+        self.manifest.context_blocks.push(block);
         self
     }
 
@@ -777,5 +914,111 @@ mod tests {
 
         assert_eq!(block.also_inject.len(), 2);
         assert_eq!(block.also_inject[0], "essential-facts");
+    }
+
+    #[test]
+    fn test_manifest_with_checkpoints() {
+        use crate::carp::{
+            StewardCheckpointDef, CheckpointTrigger, CheckpointQuestion, GuidanceBlock,
+        };
+
+        let manifest = AtlasManifest::builder(
+            "com.test.checkpoints".to_string(),
+            "Checkpoints Test".to_string(),
+        )
+        .add_capability(AtlasCapability::new(
+            "basic-access".to_string(),
+            "Basic Access".to_string(),
+            vec![],
+        ))
+        .add_context_block(AtlasContextBlock {
+            context_id: "onboarding".to_string(),
+            name: "Onboarding".to_string(),
+            priority: 100,
+            content: "Welcome to the system!".to_string(),
+            content_type: "text/markdown".to_string(),
+            inject_mode: InjectMode::OnDemand,
+            also_inject: vec![],
+            inject_when: vec![],
+            keywords: vec![],
+            risk_tiers: vec![],
+        })
+        .add_checkpoint(
+            StewardCheckpointDef::new(
+                "session-onboarding",
+                "Session Onboarding",
+                CheckpointTrigger::SessionStart,
+            )
+            .blocking()
+            .with_question(CheckpointQuestion::boolean(
+                "agree-terms",
+                "Do you agree to the terms of service?",
+            ))
+            .with_guidance(GuidanceBlock::text("Welcome!"))
+            .inject_contexts(vec!["onboarding".to_string()])
+            .unlock_capabilities(vec!["basic-access".to_string()])
+        )
+        .add_checkpoint(
+            StewardCheckpointDef::new(
+                "delete-confirm",
+                "Delete Confirmation",
+                CheckpointTrigger::ActionPre {
+                    patterns: vec!["*.delete".to_string()],
+                },
+            )
+            .blocking()
+            .with_question(CheckpointQuestion::acknowledgment(
+                "confirm-delete",
+                "I understand this action cannot be undone.",
+            ))
+        )
+        .build();
+
+        // Test checkpoint counts
+        assert_eq!(manifest.checkpoints.len(), 2);
+
+        // Test get_checkpoint
+        let onboarding = manifest.get_checkpoint("session-onboarding");
+        assert!(onboarding.is_some());
+        assert_eq!(onboarding.unwrap().questions.len(), 1);
+
+        // Test get_session_start_checkpoints
+        let session_start = manifest.get_session_start_checkpoints();
+        assert_eq!(session_start.len(), 1);
+        assert_eq!(session_start[0].checkpoint_id, "session-onboarding");
+
+        // Test get_action_checkpoints
+        let delete_checkpoints = manifest.get_action_checkpoints("user.delete");
+        assert_eq!(delete_checkpoints.len(), 1);
+        assert_eq!(delete_checkpoints[0].checkpoint_id, "delete-confirm");
+
+        // Test validation passes
+        assert!(manifest.validate().is_ok());
+    }
+
+    #[test]
+    fn test_checkpoint_validation_errors() {
+        use crate::carp::{StewardCheckpointDef, CheckpointTrigger};
+
+        let manifest = AtlasManifest::builder(
+            "com.test.invalid".to_string(),
+            "Invalid Checkpoints".to_string(),
+        )
+        .add_checkpoint(
+            StewardCheckpointDef::new(
+                "bad-checkpoint",
+                "References Unknown Context",
+                CheckpointTrigger::SessionStart,
+            )
+            .inject_contexts(vec!["nonexistent-context".to_string()])
+            .unlock_capabilities(vec!["nonexistent-capability".to_string()])
+        )
+        .build();
+
+        let result = manifest.validate();
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("unknown context")));
+        assert!(errors.iter().any(|e| e.contains("unknown capability")));
     }
 }

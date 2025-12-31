@@ -37,7 +37,24 @@ mod buffer;
 mod processor;
 mod queue;
 
-pub use event::{TRACEEvent, EventType, EventPayload};
+pub use event::{
+    TRACEEvent, EventType, EventPayload,
+    // Session payloads
+    SessionStartedPayload, SessionEndedPayload,
+    // CARP payloads
+    CARPRequestPayload, CARPResolutionPayload,
+    // Action payloads
+    ActionRequestedPayload, ActionExecutedPayload, ActionDeniedPayload, ActionFailedPayload,
+    // Policy payloads
+    PolicyEvaluatedPayload,
+    // Context payloads
+    ContextStalePayload,
+    // Checkpoint payloads
+    CheckpointTriggeredPayload, CheckpointQuestionPresentedPayload,
+    CheckpointResponseReceivedPayload, CheckpointValidatedPayload,
+    CheckpointPassedPayload, CheckpointFailedPayload,
+    CheckpointSkippedPayload, CheckpointGuidanceInjectedPayload,
+};
 pub use collector::{TraceCollector, DeferredConfig};
 pub use chain::{ChainVerification, ChainVerifier};
 pub use replay::{ReplayEngine, ReplayResult, ReplayDiff};

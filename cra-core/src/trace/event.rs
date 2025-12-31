@@ -195,6 +195,24 @@ pub enum EventType {
     #[serde(rename = "context.stale")]
     ContextStale,
 
+    // Checkpoint events
+    #[serde(rename = "checkpoint.triggered")]
+    CheckpointTriggered,
+    #[serde(rename = "checkpoint.question_presented")]
+    CheckpointQuestionPresented,
+    #[serde(rename = "checkpoint.response_received")]
+    CheckpointResponseReceived,
+    #[serde(rename = "checkpoint.validated")]
+    CheckpointValidated,
+    #[serde(rename = "checkpoint.passed")]
+    CheckpointPassed,
+    #[serde(rename = "checkpoint.failed")]
+    CheckpointFailed,
+    #[serde(rename = "checkpoint.skipped")]
+    CheckpointSkipped,
+    #[serde(rename = "checkpoint.guidance_injected")]
+    CheckpointGuidanceInjected,
+
     // Error events
     #[serde(rename = "error.occurred")]
     ErrorOccurred,
@@ -219,6 +237,14 @@ impl EventType {
             EventType::ContextInjected => "context.injected",
             EventType::ContextRedacted => "context.redacted",
             EventType::ContextStale => "context.stale",
+            EventType::CheckpointTriggered => "checkpoint.triggered",
+            EventType::CheckpointQuestionPresented => "checkpoint.question_presented",
+            EventType::CheckpointResponseReceived => "checkpoint.response_received",
+            EventType::CheckpointValidated => "checkpoint.validated",
+            EventType::CheckpointPassed => "checkpoint.passed",
+            EventType::CheckpointFailed => "checkpoint.failed",
+            EventType::CheckpointSkipped => "checkpoint.skipped",
+            EventType::CheckpointGuidanceInjected => "checkpoint.guidance_injected",
             EventType::ErrorOccurred => "error.occurred",
         }
     }
@@ -249,6 +275,21 @@ impl EventType {
                 | EventType::ActionFailed
         )
     }
+
+    /// Check if this is a checkpoint event
+    pub fn is_checkpoint_event(&self) -> bool {
+        matches!(
+            self,
+            EventType::CheckpointTriggered
+                | EventType::CheckpointQuestionPresented
+                | EventType::CheckpointResponseReceived
+                | EventType::CheckpointValidated
+                | EventType::CheckpointPassed
+                | EventType::CheckpointFailed
+                | EventType::CheckpointSkipped
+                | EventType::CheckpointGuidanceInjected
+        )
+    }
 }
 
 impl std::fmt::Display for EventType {
@@ -277,6 +318,14 @@ impl std::str::FromStr for EventType {
             "context.injected" => Ok(EventType::ContextInjected),
             "context.redacted" => Ok(EventType::ContextRedacted),
             "context.stale" => Ok(EventType::ContextStale),
+            "checkpoint.triggered" => Ok(EventType::CheckpointTriggered),
+            "checkpoint.question_presented" => Ok(EventType::CheckpointQuestionPresented),
+            "checkpoint.response_received" => Ok(EventType::CheckpointResponseReceived),
+            "checkpoint.validated" => Ok(EventType::CheckpointValidated),
+            "checkpoint.passed" => Ok(EventType::CheckpointPassed),
+            "checkpoint.failed" => Ok(EventType::CheckpointFailed),
+            "checkpoint.skipped" => Ok(EventType::CheckpointSkipped),
+            "checkpoint.guidance_injected" => Ok(EventType::CheckpointGuidanceInjected),
             "error.occurred" => Ok(EventType::ErrorOccurred),
             _ => Err(format!("Unknown event type: {}", s)),
         }
@@ -297,6 +346,14 @@ pub enum EventPayload {
     ActionFailed(ActionFailedPayload),
     PolicyEvaluated(PolicyEvaluatedPayload),
     ContextStale(ContextStalePayload),
+    CheckpointTriggered(CheckpointTriggeredPayload),
+    CheckpointQuestionPresented(CheckpointQuestionPresentedPayload),
+    CheckpointResponseReceived(CheckpointResponseReceivedPayload),
+    CheckpointValidated(CheckpointValidatedPayload),
+    CheckpointPassed(CheckpointPassedPayload),
+    CheckpointFailed(CheckpointFailedPayload),
+    CheckpointSkipped(CheckpointSkippedPayload),
+    CheckpointGuidanceInjected(CheckpointGuidanceInjectedPayload),
     Generic(Value),
 }
 
@@ -398,6 +455,132 @@ pub struct ContextStalePayload {
     pub source_file: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_verified: Option<String>,
+}
+
+/// Payload for checkpoint.triggered event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointTriggeredPayload {
+    /// The checkpoint ID from the Atlas
+    pub checkpoint_id: String,
+    /// Human-readable checkpoint name
+    pub checkpoint_name: String,
+    /// What triggered this checkpoint
+    pub trigger_type: String,
+    /// Checkpoint mode (blocking, advisory, observational)
+    pub mode: String,
+    /// Number of questions to be presented
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub question_count: Option<usize>,
+    /// Whether guidance will be injected
+    pub has_guidance: bool,
+    /// Action that triggered this (if action-based)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trigger_action_id: Option<String>,
+    /// Keyword that triggered this (if keyword-based)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trigger_keyword: Option<String>,
+}
+
+/// Payload for checkpoint.question_presented event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointQuestionPresentedPayload {
+    pub checkpoint_id: String,
+    pub question_id: String,
+    pub question_text: String,
+    pub response_type: String,
+    pub required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+}
+
+/// Payload for checkpoint.response_received event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointResponseReceivedPayload {
+    pub checkpoint_id: String,
+    pub question_id: String,
+    /// Type of answer provided
+    pub answer_type: String,
+    /// Hash of the answer (for privacy - actual answer not logged)
+    pub answer_hash: String,
+    /// Whether the response was empty
+    pub is_empty: bool,
+}
+
+/// Payload for checkpoint.validated event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointValidatedPayload {
+    pub checkpoint_id: String,
+    pub question_id: String,
+    pub validation_passed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub validation_errors: Option<Vec<String>>,
+    /// Action taken if validation failed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_on_invalid: Option<String>,
+}
+
+/// Payload for checkpoint.passed event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointPassedPayload {
+    pub checkpoint_id: String,
+    /// Number of questions answered
+    pub questions_answered: usize,
+    /// Capabilities unlocked by this checkpoint
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capabilities_unlocked: Option<Vec<String>>,
+    /// Capabilities locked by this checkpoint
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capabilities_locked: Option<Vec<String>>,
+    /// Actions allowed after this checkpoint
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actions_allowed: Option<Vec<String>>,
+    /// Actions denied after this checkpoint
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actions_denied: Option<Vec<String>>,
+    /// Duration to process checkpoint in milliseconds
+    pub duration_ms: u64,
+}
+
+/// Payload for checkpoint.failed event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointFailedPayload {
+    pub checkpoint_id: String,
+    /// Reason for failure
+    pub failure_reason: String,
+    /// Question that caused the failure (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failed_question_id: Option<String>,
+    /// Number of retry attempts (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_count: Option<u32>,
+    /// Action taken due to failure
+    pub action_taken: String,
+}
+
+/// Payload for checkpoint.skipped event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointSkippedPayload {
+    pub checkpoint_id: String,
+    /// Reason for skipping (e.g., "advisory_mode", "already_completed", "not_applicable")
+    pub skip_reason: String,
+    /// Original trigger that would have activated the checkpoint
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_trigger: Option<String>,
+}
+
+/// Payload for checkpoint.guidance_injected event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointGuidanceInjectedPayload {
+    pub checkpoint_id: String,
+    /// Format of the injected guidance
+    pub guidance_format: String,
+    /// Size of the guidance in bytes
+    pub guidance_size_bytes: usize,
+    /// Hash of the guidance content
+    pub guidance_hash: String,
+    /// Context IDs also injected
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub injected_context_ids: Option<Vec<String>>,
 }
 
 #[cfg(test)]
@@ -566,5 +749,263 @@ mod tests {
         assert_eq!(json_value["reason"], "source_file_changed");
         assert_eq!(json_value["source_file"], "/path/to/changed.rs");
         assert_eq!(json_value["last_verified"], "2025-12-29T12:00:00Z");
+    }
+
+    #[test]
+    fn test_checkpoint_event_types_parsing() {
+        // Test all checkpoint event type parsing
+        assert_eq!(
+            "checkpoint.triggered".parse::<EventType>().unwrap(),
+            EventType::CheckpointTriggered
+        );
+        assert_eq!(
+            "checkpoint.question_presented".parse::<EventType>().unwrap(),
+            EventType::CheckpointQuestionPresented
+        );
+        assert_eq!(
+            "checkpoint.response_received".parse::<EventType>().unwrap(),
+            EventType::CheckpointResponseReceived
+        );
+        assert_eq!(
+            "checkpoint.validated".parse::<EventType>().unwrap(),
+            EventType::CheckpointValidated
+        );
+        assert_eq!(
+            "checkpoint.passed".parse::<EventType>().unwrap(),
+            EventType::CheckpointPassed
+        );
+        assert_eq!(
+            "checkpoint.failed".parse::<EventType>().unwrap(),
+            EventType::CheckpointFailed
+        );
+        assert_eq!(
+            "checkpoint.skipped".parse::<EventType>().unwrap(),
+            EventType::CheckpointSkipped
+        );
+        assert_eq!(
+            "checkpoint.guidance_injected".parse::<EventType>().unwrap(),
+            EventType::CheckpointGuidanceInjected
+        );
+    }
+
+    #[test]
+    fn test_checkpoint_event_types_as_str() {
+        assert_eq!(EventType::CheckpointTriggered.as_str(), "checkpoint.triggered");
+        assert_eq!(EventType::CheckpointQuestionPresented.as_str(), "checkpoint.question_presented");
+        assert_eq!(EventType::CheckpointResponseReceived.as_str(), "checkpoint.response_received");
+        assert_eq!(EventType::CheckpointValidated.as_str(), "checkpoint.validated");
+        assert_eq!(EventType::CheckpointPassed.as_str(), "checkpoint.passed");
+        assert_eq!(EventType::CheckpointFailed.as_str(), "checkpoint.failed");
+        assert_eq!(EventType::CheckpointSkipped.as_str(), "checkpoint.skipped");
+        assert_eq!(EventType::CheckpointGuidanceInjected.as_str(), "checkpoint.guidance_injected");
+    }
+
+    #[test]
+    fn test_is_checkpoint_event() {
+        assert!(EventType::CheckpointTriggered.is_checkpoint_event());
+        assert!(EventType::CheckpointQuestionPresented.is_checkpoint_event());
+        assert!(EventType::CheckpointPassed.is_checkpoint_event());
+        assert!(EventType::CheckpointFailed.is_checkpoint_event());
+        assert!(EventType::CheckpointGuidanceInjected.is_checkpoint_event());
+
+        // Non-checkpoint events should return false
+        assert!(!EventType::SessionStarted.is_checkpoint_event());
+        assert!(!EventType::ActionExecuted.is_checkpoint_event());
+        assert!(!EventType::PolicyEvaluated.is_checkpoint_event());
+    }
+
+    #[test]
+    fn test_checkpoint_triggered_event() {
+        let payload = CheckpointTriggeredPayload {
+            checkpoint_id: "onboarding-ack".to_string(),
+            checkpoint_name: "Onboarding Acknowledgment".to_string(),
+            trigger_type: "session_start".to_string(),
+            mode: "blocking".to_string(),
+            question_count: Some(2),
+            has_guidance: true,
+            trigger_action_id: None,
+            trigger_keyword: None,
+        };
+
+        let json_value = serde_json::to_value(&payload).unwrap();
+        assert_eq!(json_value["checkpoint_id"], "onboarding-ack");
+        assert_eq!(json_value["mode"], "blocking");
+        assert_eq!(json_value["question_count"], 2);
+        assert_eq!(json_value["has_guidance"], true);
+    }
+
+    #[test]
+    fn test_checkpoint_triggered_event_chain() {
+        let first = TRACEEvent::genesis(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            json!({"agent_id": "agent-1", "goal": "test"}),
+        );
+
+        let checkpoint_event = TRACEEvent::new(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            EventType::CheckpointTriggered,
+            json!({
+                "checkpoint_id": "safety-check",
+                "checkpoint_name": "Safety Check",
+                "trigger_type": "action_pre",
+                "mode": "blocking",
+                "has_guidance": false,
+                "trigger_action_id": "user.delete"
+            }),
+        )
+        .chain(1, first.event_hash.clone());
+
+        assert_eq!(checkpoint_event.sequence, 1);
+        assert!(checkpoint_event.verify_hash());
+        assert!(checkpoint_event.event_type.is_checkpoint_event());
+    }
+
+    #[test]
+    fn test_checkpoint_passed_payload() {
+        let payload = CheckpointPassedPayload {
+            checkpoint_id: "data-access-approval".to_string(),
+            questions_answered: 3,
+            capabilities_unlocked: Some(vec!["sensitive-data-read".to_string()]),
+            capabilities_locked: None,
+            actions_allowed: Some(vec!["database.query".to_string()]),
+            actions_denied: None,
+            duration_ms: 1250,
+        };
+
+        let json_value = serde_json::to_value(&payload).unwrap();
+        assert_eq!(json_value["checkpoint_id"], "data-access-approval");
+        assert_eq!(json_value["questions_answered"], 3);
+        assert_eq!(json_value["duration_ms"], 1250);
+        assert!(json_value.get("capabilities_locked").is_none()); // Should be skipped
+    }
+
+    #[test]
+    fn test_checkpoint_failed_payload() {
+        let payload = CheckpointFailedPayload {
+            checkpoint_id: "compliance-check".to_string(),
+            failure_reason: "validation_failed".to_string(),
+            failed_question_id: Some("q-compliance-ack".to_string()),
+            retry_count: Some(3),
+            action_taken: "block_session".to_string(),
+        };
+
+        let json_value = serde_json::to_value(&payload).unwrap();
+        assert_eq!(json_value["checkpoint_id"], "compliance-check");
+        assert_eq!(json_value["failure_reason"], "validation_failed");
+        assert_eq!(json_value["action_taken"], "block_session");
+    }
+
+    #[test]
+    fn test_checkpoint_guidance_injected_payload() {
+        let payload = CheckpointGuidanceInjectedPayload {
+            checkpoint_id: "pii-handling".to_string(),
+            guidance_format: "markdown".to_string(),
+            guidance_size_bytes: 2048,
+            guidance_hash: "abc123def456".to_string(),
+            injected_context_ids: Some(vec![
+                "ctx-pii-policy".to_string(),
+                "ctx-data-handling".to_string(),
+            ]),
+        };
+
+        let json_value = serde_json::to_value(&payload).unwrap();
+        assert_eq!(json_value["checkpoint_id"], "pii-handling");
+        assert_eq!(json_value["guidance_format"], "markdown");
+        assert_eq!(json_value["guidance_size_bytes"], 2048);
+    }
+
+    #[test]
+    fn test_checkpoint_event_full_chain() {
+        // Simulate a complete checkpoint flow in TRACE
+        let genesis = TRACEEvent::genesis(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            json!({"agent_id": "agent-1", "goal": "process customer data"}),
+        );
+
+        let triggered = TRACEEvent::new(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            EventType::CheckpointTriggered,
+            json!({
+                "checkpoint_id": "data-consent",
+                "checkpoint_name": "Data Consent Verification",
+                "trigger_type": "session_start",
+                "mode": "blocking",
+                "question_count": 1,
+                "has_guidance": true
+            }),
+        )
+        .chain(1, genesis.event_hash.clone());
+
+        let question = TRACEEvent::new(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            EventType::CheckpointQuestionPresented,
+            json!({
+                "checkpoint_id": "data-consent",
+                "question_id": "q-consent",
+                "question_text": "Do you acknowledge the data handling requirements?",
+                "response_type": "boolean",
+                "required": true
+            }),
+        )
+        .chain(2, triggered.event_hash.clone());
+
+        let response = TRACEEvent::new(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            EventType::CheckpointResponseReceived,
+            json!({
+                "checkpoint_id": "data-consent",
+                "question_id": "q-consent",
+                "answer_type": "boolean",
+                "answer_hash": "c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2",
+                "is_empty": false
+            }),
+        )
+        .chain(3, question.event_hash.clone());
+
+        let validated = TRACEEvent::new(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            EventType::CheckpointValidated,
+            json!({
+                "checkpoint_id": "data-consent",
+                "question_id": "q-consent",
+                "validation_passed": true
+            }),
+        )
+        .chain(4, response.event_hash.clone());
+
+        let passed = TRACEEvent::new(
+            "session-1".to_string(),
+            "trace-1".to_string(),
+            EventType::CheckpointPassed,
+            json!({
+                "checkpoint_id": "data-consent",
+                "questions_answered": 1,
+                "capabilities_unlocked": ["customer-data-access"],
+                "duration_ms": 850
+            }),
+        )
+        .chain(5, validated.event_hash.clone());
+
+        // Verify the chain
+        assert!(genesis.verify_hash());
+        assert!(triggered.verify_hash());
+        assert!(question.verify_hash());
+        assert!(response.verify_hash());
+        assert!(validated.verify_hash());
+        assert!(passed.verify_hash());
+
+        // Verify chain linkage
+        assert_eq!(triggered.previous_event_hash, genesis.event_hash);
+        assert_eq!(question.previous_event_hash, triggered.event_hash);
+        assert_eq!(response.previous_event_hash, question.event_hash);
+        assert_eq!(validated.previous_event_hash, response.event_hash);
+        assert_eq!(passed.previous_event_hash, validated.event_hash);
     }
 }
