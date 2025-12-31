@@ -13,7 +13,7 @@ use chrono::Utc;
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::atlas::{AtlasAction, AtlasContextBlock, AtlasManifest, InjectMode};
+use crate::atlas::{AtlasAction, AtlasManifest};
 use crate::context::{ContextRegistry, ContextMatcher, LoadedContext, ContextSource};
 use crate::error::{CRAError, Result};
 use crate::trace::{DeferredConfig, EventType, TraceCollector, TRACEEvent};
@@ -21,6 +21,10 @@ use crate::trace::{DeferredConfig, EventType, TraceCollector, TRACEEvent};
 use super::{
     AllowedAction, CARPRequest, CARPResolution, ContextBlock, Constraint, Decision, DeniedAction,
     PolicyEvaluator, PolicyResult,
+    // Checkpoint types
+    CheckpointEvaluator, CheckpointConfig, CheckpointResponse,
+    CheckpointValidator, CheckpointValidation, TriggeredCheckpoint,
+    SessionCheckpointState, TriggerData,
 };
 
 /// Session state
@@ -83,8 +87,20 @@ pub struct Resolver {
     /// Active sessions by ID
     sessions: HashMap<String, Session>,
 
+    /// Checkpoint state per session
+    checkpoint_states: HashMap<String, SessionCheckpointState>,
+
+    /// Pending checkpoints awaiting response
+    pending_checkpoints: HashMap<String, Vec<TriggeredCheckpoint>>,
+
+    /// Unlocked capabilities per session
+    unlocked_capabilities: HashMap<String, std::collections::HashSet<String>>,
+
     /// Policy evaluator
     policy_evaluator: PolicyEvaluator,
+
+    /// Checkpoint evaluator
+    checkpoint_evaluator: CheckpointEvaluator,
 
     /// Context registry for context injection
     context_registry: ContextRegistry,
@@ -105,12 +121,22 @@ impl Resolver {
         Self {
             atlases: HashMap::new(),
             sessions: HashMap::new(),
+            checkpoint_states: HashMap::new(),
+            pending_checkpoints: HashMap::new(),
+            unlocked_capabilities: HashMap::new(),
             policy_evaluator: PolicyEvaluator::new(),
+            checkpoint_evaluator: CheckpointEvaluator::with_defaults(),
             context_registry: ContextRegistry::new(),
             context_matcher: ContextMatcher::new(),
             trace_collector: TraceCollector::new(),
             default_ttl: 300, // 5 minutes
         }
+    }
+
+    /// Create a resolver with custom checkpoint config
+    pub fn with_checkpoint_config(mut self, config: CheckpointConfig) -> Self {
+        self.checkpoint_evaluator = CheckpointEvaluator::new(config);
+        self
     }
 
     /// Set the default TTL for resolutions
@@ -244,6 +270,8 @@ impl Resolver {
     }
 
     /// Create a new session
+    ///
+    /// Returns the session ID and any triggered session start checkpoints.
     pub fn create_session(&mut self, agent_id: &str, goal: &str) -> Result<String> {
         let session_id = Uuid::new_v4().to_string();
 
@@ -254,6 +282,10 @@ impl Resolver {
         }
 
         let session = Session::new(session_id.clone(), agent_id.to_string(), goal.to_string());
+
+        // Initialize checkpoint state for this session
+        self.checkpoint_states.insert(session_id.clone(), SessionCheckpointState::new());
+        self.unlocked_capabilities.insert(session_id.clone(), std::collections::HashSet::new());
 
         // Emit session.started event
         self.trace_collector.emit(
@@ -266,8 +298,281 @@ impl Resolver {
             }),
         )?;
 
+        // Evaluate session start checkpoints from atlases
+        let session_start_checkpoints = self.evaluate_session_start_checkpoints(&session_id)?;
+
+        if !session_start_checkpoints.is_empty() {
+            // Store pending checkpoints if any require response
+            let pending: Vec<_> = session_start_checkpoints
+                .iter()
+                .filter(|c| c.requires_response())
+                .cloned()
+                .collect();
+
+            if !pending.is_empty() {
+                self.pending_checkpoints.insert(session_id.clone(), pending);
+            }
+        }
+
         self.sessions.insert(session_id.clone(), session);
         Ok(session_id)
+    }
+
+    /// Evaluate session start checkpoints from all loaded atlases
+    fn evaluate_session_start_checkpoints(&mut self, session_id: &str) -> Result<Vec<TriggeredCheckpoint>> {
+        let mut checkpoints = Vec::new();
+
+        // Get checkpoints from the basic evaluator
+        if let Some(basic_checkpoint) = self.checkpoint_evaluator.on_session_start() {
+            checkpoints.push(basic_checkpoint);
+        }
+
+        // Collect checkpoint data from atlases (without mutable borrow)
+        let checkpoint_data: Vec<_> = self.atlases.values()
+            .flat_map(|atlas| {
+                atlas.get_session_start_checkpoints().into_iter().map(|def| {
+                    let triggered = self.checkpoint_evaluator.evaluate_steward_checkpoint(def, None);
+                    (def.checkpoint_id.clone(), def.name.clone(), def.mode, def.questions.len(), def.guidance.is_some(), triggered)
+                })
+            })
+            .collect();
+
+        // Now emit events and collect checkpoints
+        for (checkpoint_id, name, mode, question_count, has_guidance, triggered) in checkpoint_data {
+            // Emit checkpoint.triggered event
+            self.trace_collector.emit(
+                session_id,
+                EventType::CheckpointTriggered,
+                serde_json::json!({
+                    "checkpoint_id": checkpoint_id,
+                    "checkpoint_name": name,
+                    "trigger_type": "session_start",
+                    "mode": format!("{:?}", mode).to_lowercase(),
+                    "question_count": question_count,
+                    "has_guidance": has_guidance,
+                }),
+            )?;
+
+            // Emit guidance if present
+            if let Some(guidance) = &triggered.guidance {
+                self.emit_guidance_injected(session_id, &checkpoint_id, guidance)?;
+            }
+
+            checkpoints.push(triggered);
+        }
+
+        // Sort by priority (highest first)
+        checkpoints.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+        Ok(checkpoints)
+    }
+
+    /// Get pending checkpoints for a session that require response
+    pub fn get_pending_checkpoints(&self, session_id: &str) -> Option<&Vec<TriggeredCheckpoint>> {
+        self.pending_checkpoints.get(session_id)
+    }
+
+    /// Check if a session has pending blocking checkpoints
+    pub fn has_pending_checkpoints(&self, session_id: &str) -> bool {
+        self.pending_checkpoints
+            .get(session_id)
+            .map(|c| !c.is_empty())
+            .unwrap_or(false)
+    }
+
+    /// Submit a response to a checkpoint
+    pub fn respond_to_checkpoint(
+        &mut self,
+        session_id: &str,
+        response: &CheckpointResponse,
+    ) -> Result<CheckpointValidation> {
+        // Get the pending checkpoints
+        let pending = self.pending_checkpoints.get(session_id).ok_or_else(|| {
+            CRAError::InvalidCARPRequest {
+                reason: format!("No pending checkpoints for session {}", session_id),
+            }
+        })?;
+
+        // Find the checkpoint being responded to
+        let checkpoint = pending
+            .iter()
+            .find(|c| {
+                c.steward_def
+                    .as_ref()
+                    .map(|d| d.checkpoint_id == response.checkpoint_id)
+                    .unwrap_or(false)
+            })
+            .ok_or_else(|| {
+                CRAError::InvalidCARPRequest {
+                    reason: format!("Checkpoint {} not found in pending", response.checkpoint_id),
+                }
+            })?;
+
+        // Emit response received event
+        for (question_id, answer) in &response.answers {
+            let answer_hash = hash_value(&serde_json::to_value(answer).unwrap_or_default());
+            self.trace_collector.emit(
+                session_id,
+                EventType::CheckpointResponseReceived,
+                serde_json::json!({
+                    "checkpoint_id": response.checkpoint_id,
+                    "question_id": question_id,
+                    "answer_type": format!("{:?}", answer),
+                    "answer_hash": answer_hash,
+                    "is_empty": false,
+                }),
+            )?;
+        }
+
+        // Validate the response
+        let validation = CheckpointValidator::validate(checkpoint, response);
+
+        // Emit validation events
+        for (question_id, result) in &validation.question_results {
+            self.trace_collector.emit(
+                session_id,
+                EventType::CheckpointValidated,
+                serde_json::json!({
+                    "checkpoint_id": response.checkpoint_id,
+                    "question_id": question_id,
+                    "validation_passed": result.is_valid,
+                    "validation_errors": result.error_message,
+                }),
+            )?;
+        }
+
+        // Emit passed/failed event
+        if validation.is_valid {
+            self.trace_collector.emit(
+                session_id,
+                EventType::CheckpointPassed,
+                serde_json::json!({
+                    "checkpoint_id": response.checkpoint_id,
+                    "questions_answered": response.answers.len(),
+                    "capabilities_unlocked": validation.unlocked_capabilities,
+                    "capabilities_locked": validation.locked_capabilities,
+                    "duration_ms": 0, // Would need timing
+                }),
+            )?;
+
+            // Apply capability changes
+            if let Some(caps) = self.unlocked_capabilities.get_mut(session_id) {
+                for cap in &validation.unlocked_capabilities {
+                    caps.insert(cap.clone());
+                }
+                for cap in &validation.locked_capabilities {
+                    caps.remove(cap);
+                }
+            }
+
+            // Remove the responded checkpoint from pending
+            if let Some(pending) = self.pending_checkpoints.get_mut(session_id) {
+                pending.retain(|c| {
+                    c.steward_def
+                        .as_ref()
+                        .map(|d| d.checkpoint_id != response.checkpoint_id)
+                        .unwrap_or(true)
+                });
+            }
+        } else {
+            self.trace_collector.emit(
+                session_id,
+                EventType::CheckpointFailed,
+                serde_json::json!({
+                    "checkpoint_id": response.checkpoint_id,
+                    "failure_reason": "validation_failed",
+                    "action_taken": "retry",
+                }),
+            )?;
+        }
+
+        Ok(validation)
+    }
+
+    /// Evaluate checkpoints before an action
+    pub fn evaluate_action_checkpoints(
+        &mut self,
+        session_id: &str,
+        action_id: &str,
+    ) -> Result<Vec<TriggeredCheckpoint>> {
+        let mut checkpoints = Vec::new();
+
+        // Get steward-defined action checkpoints from atlases
+        for atlas in self.atlases.values() {
+            for checkpoint_def in atlas.get_action_checkpoints(action_id) {
+                let triggered = self.checkpoint_evaluator.evaluate_steward_checkpoint(
+                    checkpoint_def,
+                    Some(TriggerData::Action {
+                        action_id: action_id.to_string(),
+                        params: None,
+                    }),
+                );
+
+                // Emit checkpoint.triggered event
+                self.trace_collector.emit(
+                    session_id,
+                    EventType::CheckpointTriggered,
+                    serde_json::json!({
+                        "checkpoint_id": checkpoint_def.checkpoint_id,
+                        "checkpoint_name": checkpoint_def.name,
+                        "trigger_type": "action_pre",
+                        "mode": format!("{:?}", checkpoint_def.mode).to_lowercase(),
+                        "question_count": checkpoint_def.questions.len(),
+                        "has_guidance": checkpoint_def.guidance.is_some(),
+                        "trigger_action_id": action_id,
+                    }),
+                )?;
+
+                checkpoints.push(triggered);
+            }
+        }
+
+        // Sort by priority
+        checkpoints.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+        Ok(checkpoints)
+    }
+
+    /// Check if a capability is unlocked for a session
+    pub fn is_capability_unlocked(&self, session_id: &str, capability_id: &str) -> bool {
+        self.unlocked_capabilities
+            .get(session_id)
+            .map(|caps| caps.contains(capability_id))
+            .unwrap_or(false)
+    }
+
+    /// Get all unlocked capabilities for a session
+    pub fn get_unlocked_capabilities(&self, session_id: &str) -> Vec<String> {
+        self.unlocked_capabilities
+            .get(session_id)
+            .map(|caps| caps.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    /// Helper to emit guidance injected event
+    fn emit_guidance_injected(
+        &mut self,
+        session_id: &str,
+        checkpoint_id: &str,
+        guidance: &super::checkpoint::GuidanceBlock,
+    ) -> Result<()> {
+        let guidance_hash = hash_value(&serde_json::json!({
+            "content": guidance.content,
+            "format": format!("{:?}", guidance.format),
+        }));
+
+        self.trace_collector.emit(
+            session_id,
+            EventType::CheckpointGuidanceInjected,
+            serde_json::json!({
+                "checkpoint_id": checkpoint_id,
+                "guidance_format": format!("{:?}", guidance.format).to_lowercase(),
+                "guidance_size_bytes": guidance.content.len(),
+                "guidance_hash": guidance_hash,
+            }),
+        )?;
+
+        Ok(())
     }
 
     /// End a session
@@ -297,6 +602,11 @@ impl Resolver {
                 "action_count": session.action_count,
             }),
         )?;
+
+        // Clean up checkpoint state
+        self.checkpoint_states.remove(session_id);
+        self.pending_checkpoints.remove(session_id);
+        self.unlocked_capabilities.remove(session_id);
 
         Ok(())
     }
@@ -793,7 +1103,7 @@ mod tests {
 
     #[test]
     fn test_context_injection() {
-        use crate::atlas::AtlasContextBlock;
+        use crate::atlas::{AtlasContextBlock, InjectMode};
 
         // Create an atlas with context_blocks
         let mut atlas: AtlasManifest = serde_json::from_value(json!({
