@@ -1,0 +1,23 @@
+[package]
+name = "cra-node"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CRA Core Node.js bindings via napi-rs"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cra-core = { path = "../cra-core" }
+napi = { version = "2", features = ["serde-json"] }
+napi-derive = "2"
+serde.workspace = true
+serde_json.workspace = true
+
+[build-dependencies]
+napi-build = "2"
+
+[features]
+default = []

@@ -1,0 +1,20 @@
+[package]
+name = "cra-python"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CRA Core Python bindings via PyO3"
+
+[lib]
+name = "cra"
+crate-type = ["cdylib"]
+
+[dependencies]
+cra-core = { path = "../cra-core" }
+pyo3 = { version = "0.20", features = ["extension-module"] }
+serde.workspace = true
+serde_json.workspace = true
+
+[features]
+default = []

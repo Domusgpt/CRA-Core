@@ -1,0 +1,15 @@
+{
+  "carp_version": "1.0",
+  "request_id": "00000000-0000-0000-0000-000000000001",
+  "timestamp": "2024-12-28T12:00:00.000Z",
+  "operation": "resolve",
+  "requester": {
+    "agent_id": "conformance-test-agent",
+    "session_id": "00000000-0000-0000-0000-000000000100"
+  },
+  "task": {
+    "goal": "Manage resources in the test environment",
+    "risk_tier": "low"
+  },
+  "atlas_ids": ["com.cra.conformance.simple"]
+}

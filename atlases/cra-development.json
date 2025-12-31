@@ -1,0 +1,274 @@
+{
+  "atlas_version": "1.0",
+  "atlas_id": "dev.cra.self-governance",
+  "version": "2.0.0",
+  "name": "CRA Self-Governance Atlas",
+  "description": "Atlas for AI agents developing CRA itself. Injects critical context to prevent common mistakes. This atlas demonstrates the Context Registry in action - it governs CRA development using CRA.",
+  "authors": ["CRA Development Team"],
+  "license": "MIT",
+  "domains": ["development", "cra-core", "rust"],
+
+  "capabilities": [
+    {
+      "capability_id": "trace.modify",
+      "name": "Modify Trace Implementation",
+      "actions": ["trace.edit_event", "trace.edit_collector", "trace.edit_chain", "trace.edit_buffer"]
+    },
+    {
+      "capability_id": "carp.modify",
+      "name": "Modify CARP Implementation",
+      "actions": ["carp.edit_resolver", "carp.edit_policy", "carp.edit_request", "carp.edit_resolution"]
+    },
+    {
+      "capability_id": "context.modify",
+      "name": "Modify Context Registry",
+      "actions": ["context.edit_registry", "context.edit_matcher"]
+    },
+    {
+      "capability_id": "atlas.modify",
+      "name": "Modify Atlas Handling",
+      "actions": ["atlas.edit_manifest", "atlas.edit_loader"]
+    }
+  ],
+
+  "context_blocks": [
+    {
+      "context_id": "cra-architecture-overview",
+      "name": "CRA Architecture Overview",
+      "priority": 100,
+      "content": "# CRA Architecture\n\nCRA = Context + Resolution + Action (also CARP + TRACE + Atlas)\n\n## Core Flow\n```\n1. Agent loads Atlas(es) with actions, policies, context_blocks\n2. Agent creates session with goal\n3. Agent submits CARPRequest\n4. Resolver evaluates policies → what's allowed/denied\n5. Resolver queries ContextRegistry → injects matching context\n6. Resolver returns CARPResolution with actions + context_blocks\n7. Agent executes actions, each emits TRACE events\n8. Hash chain provides cryptographic proof\n```\n\n## Key Principle\n\"If it wasn't emitted by the runtime, it didn't happen.\"\n\nTRACE events form an immutable audit log with cryptographic integrity.",
+      "content_type": "text/markdown",
+      "keywords": ["architecture", "overview", "cra", "design", "structure", "flow"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+    {
+      "context_id": "hash-computation-rule",
+      "name": "Hash Computation Canonical Pattern",
+      "priority": 200,
+      "content": "# CRITICAL: Hash Computation\n\n**NEVER reimplement hash logic. Use TRACEEvent::compute_hash() from trace/event.rs.**\n\n## Hash Components (in order)\n```rust\nhasher.update(TRACE_VERSION);\nhasher.update(&self.event_id);\nhasher.update(&self.trace_id);\nhasher.update(&self.span_id);\nhasher.update(&self.parent_span_id);\nhasher.update(&self.session_id);\nhasher.update(self.sequence.to_le_bytes());\nhasher.update(self.timestamp.to_rfc3339());\nhasher.update(self.event_type.as_str());\nhasher.update(canonical_json(&self.payload));  // SORTED KEYS!\nhasher.update(&self.previous_event_hash);\n```\n\n## Common Mistake\n```rust\n// WRONG - non-deterministic key order!\nlet json = serde_json::to_string(&payload)?;\n\n// CORRECT - sorted keys for reproducibility\nlet json = canonical_json(&payload);\n```\n\nIf chain verification fails, you likely:\n1. Used serde_json::to_string() instead of canonical_json()\n2. Missed a hash component\n3. Wrong byte order for sequence",
+      "content_type": "text/markdown",
+      "keywords": ["hash", "compute_hash", "sha256", "chain", "verification", "canonical", "event_hash"],
+      "inject_when": ["trace.edit_event", "trace.edit_collector", "trace.edit_chain"],
+      "risk_tiers": ["high", "critical"]
+    },
+    {
+      "context_id": "chain-invariants",
+      "name": "Hash Chain Invariants",
+      "priority": 190,
+      "content": "# TRACE Chain Invariants\n\n## Invariants (NEVER violate)\n1. **Append-only**: Never modify or delete existing events\n2. **Linked hashes**: `event.previous_event_hash == prior_event.event_hash`\n3. **Genesis**: First event uses GENESIS_HASH (64 zeros)\n4. **Monotonic sequence**: 0, 1, 2, 3... (no gaps, no reordering)\n5. **Session isolation**: One chain per session_id\n\n## Verification\n```rust\n// ChainVerifier recalculates each hash and checks linkage\nlet verification = collector.verify_chain(&session_id)?;\nassert!(verification.is_valid);\n```\n\n## If Verification Fails\n1. Check hash computation (use compute_hash()!)\n2. Check previous_event_hash linkage\n3. Check sequence numbers\n4. Check canonical_json() usage",
+      "content_type": "text/markdown",
+      "keywords": ["chain", "invariant", "verify", "integrity", "previous_event_hash", "sequence", "genesis"],
+      "inject_when": ["trace.edit_event", "trace.edit_collector", "trace.edit_chain"],
+      "risk_tiers": ["high"]
+    },
+    {
+      "context_id": "deferred-mode-pattern",
+      "name": "Deferred Tracing Implementation",
+      "priority": 180,
+      "content": "# Deferred Tracing Mode\n\n## Purpose\nHigh-throughput scenarios (agent swarms, benchmarks) where <1µs per event matters.\n\n## How It Works\n```rust\n// emit() stores event with placeholder hash\nevent.event_hash = \"deferred\".to_string();\nsession.events.push(event);  // Immediately available\nbuffer.push(pending_idx);    // Track for later\n\n// flush() computes real hashes\nfor event in pending_events {\n    event.event_hash = event.compute_hash();  // CALLS compute_hash()!\n}\n```\n\n## CRITICAL\nflush() calls `event.compute_hash()` - it does NOT reimplement hash logic.\nThe \"deferred\" literal is the placeholder, not a mode string.\n\n## Usage\n```rust\nlet resolver = Resolver::new()\n    .with_deferred_tracing(DeferredConfig::default());\n\n// Fast operations\nresolver.resolve(&request)?;\n\n// Before reading trace:\nresolver.flush_traces()?;\nlet trace = resolver.get_trace(&session_id)?;\n```",
+      "content_type": "text/markdown",
+      "keywords": ["deferred", "flush", "buffer", "performance", "throughput", "async"],
+      "inject_when": ["trace.edit_collector"],
+      "risk_tiers": ["medium"]
+    },
+    {
+      "context_id": "context-registry-usage",
+      "name": "Context Registry Usage",
+      "priority": 170,
+      "content": "# Context Registry\n\nThe 'C' in CRA - bridges Atlas.context_blocks → Resolution.context_blocks.\n\n## Data Flow\n```\nAtlas.context_blocks → load_atlas() → ContextRegistry\n                                           ↓\nCARPRequest.goal → resolve() → query() → ContextMatcher\n                                           ↓\n                        CARPResolution.context_blocks\n```\n\n## Adding Context\n```rust\nlet loaded = LoadedContext {\n    pack_id: \"my-context\".to_string(),\n    source: ContextSource::Atlas(atlas_id),\n    content: \"The context content...\".to_string(),\n    content_type: \"text/markdown\".to_string(),\n    priority: 100,  // Higher = earlier injection\n    keywords: vec![\"relevant\".to_string(), \"terms\".to_string()],\n    conditions: Some(json!({ \"keywords\": [\"match\", \"these\"] })),\n};\nregistry.add_context(loaded);\n```\n\n## Matching Logic\n1. Keywords in goal text trigger inclusion\n2. context_hints from request boost matching\n3. risk_tiers filter by request risk level\n4. inject_when matches action patterns\n5. Priority determines injection order",
+      "content_type": "text/markdown",
+      "keywords": ["context", "registry", "inject", "context_blocks", "matching", "query"],
+      "inject_when": ["context.edit_registry", "context.edit_matcher", "carp.edit_resolver"],
+      "risk_tiers": []
+    },
+    {
+      "context_id": "context-matcher-conditions",
+      "name": "Context Matcher Conditions",
+      "priority": 160,
+      "content": "# ContextMatcher Conditions\n\n## Condition Types\n```json\n{\n  \"keywords\": [\"hash\", \"chain\", \"trace\"],\n  \"risk_tiers\": [\"high\", \"critical\"],\n  \"context_hints\": [\"security\", \"audit\"],\n  \"inject_when\": [\"trace.edit_*\"],\n  \"file_pattern\": \"trace/*.rs\"\n}\n```\n\n## Scoring\n- keyword match: +20 points\n- risk_tier match: +30 points\n- context_hint match: +25 points\n- file_pattern match: +15 points\n- inject_when match: +10 points\n\n## Implementation\n```rust\nlet matcher = ContextMatcher::new()\n    .with_min_score(0)     // Include all matches\n    .with_max_blocks(10);  // Limit injection\n\nlet result = matcher.evaluate(\n    conditions.as_ref(),\n    &request.goal,\n    request.risk_tier,\n    &request.context_hints,\n    pack_priority,\n);\n\nif result.matched {\n    // Include this context block\n}\n```",
+      "content_type": "text/markdown",
+      "keywords": ["matcher", "conditions", "score", "evaluate", "matching"],
+      "inject_when": ["context.edit_matcher"],
+      "risk_tiers": []
+    },
+    {
+      "context_id": "carp-resolver-flow",
+      "name": "CARP Resolver Flow",
+      "priority": 150,
+      "content": "# CARP Resolver Flow\n\n## resolve() Steps\n```rust\npub fn resolve(&mut self, request: &CARPRequest) -> Result<CARPResolution> {\n    // 1. Validate request\n    request.validate()?;\n    \n    // 2. Verify session exists and is active\n    let session = self.sessions.get_mut(&request.session_id)?;\n    \n    // 3. Emit carp.request.received event\n    self.trace_collector.emit(EventType::CARPRequestReceived, ...);\n    \n    // 4. Evaluate policies for each action\n    for action in all_actions {\n        match self.policy_evaluator.evaluate(&action.action_id) {\n            PolicyResult::Allow => allowed_actions.push(action),\n            PolicyResult::Deny { reason } => denied_actions.push(denial),\n            // ...\n        }\n    }\n    \n    // 5. Query context registry (THE NEW PART)\n    let matching_contexts = self.context_registry.query(&request.goal, None);\n    for ctx in matching_contexts {\n        if self.context_matcher.evaluate(...).matched {\n            context_blocks.push(ctx.to_context_block());\n            self.trace_collector.emit(EventType::ContextInjected, ...);\n        }\n    }\n    \n    // 6. Build and return resolution\n    CARPResolution::builder(session_id)\n        .allowed_actions(allowed_actions)\n        .context_blocks(context_blocks)\n        .build()\n}\n```\n\n## Key Points\n- Every step emits TRACE events\n- Context injection happens BEFORE resolution is returned\n- context.injected events create audit trail of what was injected",
+      "content_type": "text/markdown",
+      "keywords": ["resolver", "resolve", "carp", "request", "resolution", "flow"],
+      "inject_when": ["carp.edit_resolver"],
+      "risk_tiers": []
+    },
+    {
+      "context_id": "atlas-manifest-structure",
+      "name": "Atlas Manifest Structure",
+      "priority": 140,
+      "content": "# Atlas Manifest Structure\n\n## Full Schema\n```rust\npub struct AtlasManifest {\n    pub atlas_version: String,     // \"1.0\"\n    pub atlas_id: String,          // \"com.example.myatlas\"\n    pub version: String,           // \"1.0.0\" (semver)\n    pub name: String,\n    pub description: String,\n    pub authors: Vec<String>,\n    pub license: Option<String>,\n    pub domains: Vec<String>,      // Discovery tags\n    pub capabilities: Vec<AtlasCapability>,\n    pub context_packs: Vec<AtlasContextPack>,   // File-based\n    pub context_blocks: Vec<AtlasContextBlock>, // Inline\n    pub policies: Vec<AtlasPolicy>,\n    pub actions: Vec<AtlasAction>,\n    pub dependencies: Option<HashMap<String, String>>,\n}\n```\n\n## Context Block (Inline)\n```rust\npub struct AtlasContextBlock {\n    pub context_id: String,\n    pub name: String,\n    pub priority: i32,           // Higher = earlier injection\n    pub content: String,         // The actual context\n    pub content_type: String,    // \"text/markdown\"\n    pub inject_when: Vec<String>,// Action patterns\n    pub keywords: Vec<String>,   // Trigger words\n    pub risk_tiers: Vec<String>, // Filter by risk\n}\n```",
+      "content_type": "text/markdown",
+      "keywords": ["atlas", "manifest", "schema", "structure", "context_blocks", "context_packs"],
+      "inject_when": ["atlas.edit_manifest"],
+      "risk_tiers": []
+    },
+    {
+      "context_id": "event-types-reference",
+      "name": "TRACE Event Types Reference",
+      "priority": 130,
+      "content": "# TRACE Event Types\n\n## Session Events\n- `session.started` - Session created with agent_id and goal\n- `session.ended` - Session completed with stats\n\n## CARP Events\n- `carp.request.received` - CARPRequest submitted\n- `carp.resolution.completed` - Resolution returned\n- `policy.evaluated` - Policy check result\n\n## Action Events\n- `action.requested` - Agent wants to execute\n- `action.approved` - Passed policy check\n- `action.denied` - Failed policy check\n- `action.executed` - Execution completed\n\n## Context Events\n- `context.injected` - Context block added to resolution\n\n## Implementation\n```rust\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]\npub enum EventType {\n    #[serde(rename = \"session.started\")]\n    SessionStarted,\n    #[serde(rename = \"context.injected\")]\n    ContextInjected,\n    // ...\n}\n```\n\nAlways use existing EventType variants. Add new ones only when existing don't fit.",
+      "content_type": "text/markdown",
+      "keywords": ["event", "EventType", "trace", "emit", "session", "action"],
+      "inject_when": ["trace.edit_event", "trace.edit_collector"],
+      "risk_tiers": []
+    },
+    {
+      "context_id": "testing-requirements",
+      "name": "Testing Requirements",
+      "priority": 120,
+      "content": "# Testing Requirements\n\n## Before ANY Changes\n```bash\n# Run all tests\ncargo test --lib\n\n# Should see: 117+ tests passing\n```\n\n## Specific Test Commands\n```bash\n# Deferred mode tests\ncargo test deferred\n\n# Chain verification tests\ncargo test chain\n\n# Context injection tests\ncargo test context\n\n# Resolver tests\ncargo test resolver\n```\n\n## After Changes\n1. Run `cargo check` - must compile\n2. Run `cargo test --lib` - all tests pass\n3. Run `cargo test --test conformance` if touching protocol\n\n## If Chain Tests Fail\nYou probably:\n1. Reimplemented hash logic (use compute_hash()!)\n2. Used serde_json::to_string() instead of canonical_json()\n3. Changed hash component order\n\n## Writing New Tests\n```rust\n#[test]\nfn test_my_feature() {\n    let mut resolver = Resolver::new();\n    // Load atlas, create session, resolve, verify\n    let verification = resolver.verify_chain(&session_id).unwrap();\n    assert!(verification.is_valid, \"Chain must be valid\");\n}\n```",
+      "content_type": "text/markdown",
+      "keywords": ["test", "testing", "cargo", "verify", "check", "failing"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+    {
+      "context_id": "error-handling-patterns",
+      "name": "Error Handling Patterns",
+      "priority": 110,
+      "content": "# Error Handling in CRA\n\n## Use CRAError\n```rust\nuse crate::error::{CRAError, Result};\n\npub fn my_function() -> Result<Something> {\n    // Return typed errors\n    Err(CRAError::SessionNotFound { session_id })?;\n    \n    // Or use the ? operator\n    let session = self.sessions.get(&id)\n        .ok_or_else(|| CRAError::SessionNotFound { session_id: id })?;\n}\n```\n\n## Error Categories\n- **Client errors** (4xx): Invalid input, not found\n- **Server errors** (5xx): Internal failures\n\n## Common Errors\n```rust\nCRAError::SessionNotFound { session_id }\nCRAError::AtlasNotFound { atlas_id }\nCRAError::ActionNotFound { action_id }\nCRAError::InvalidCARPRequest { reason }\nCRAError::AtlasAlreadyLoaded { atlas_id }\nCRAError::ActionDenied { policy_id, reason }\n```\n\n## Never Panic\nUse Result<T> instead of unwrap() in library code.",
+      "content_type": "text/markdown",
+      "keywords": ["error", "CRAError", "Result", "handling", "unwrap", "panic"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+    {
+      "context_id": "module-boundaries",
+      "name": "Module Boundaries",
+      "priority": 105,
+      "content": "# CRA Module Boundaries\n\n## Directory Structure\n```\ncra-core/src/\n├── lib.rs          # Public exports\n├── error.rs        # CRAError, Result\n├── carp/           # CARP protocol\n│   ├── mod.rs      # Exports\n│   ├── resolver.rs # Main entry point ★\n│   ├── request.rs  # CARPRequest\n│   ├── resolution.rs # CARPResolution, ContextBlock\n│   └── policy.rs   # PolicyEvaluator\n├── trace/          # TRACE protocol\n│   ├── mod.rs      # Exports\n│   ├── event.rs    # TRACEEvent, compute_hash() ★\n│   ├── collector.rs # TraceCollector, deferred mode\n│   ├── chain.rs    # ChainVerifier\n│   └── buffer.rs   # Lock-free ring buffer\n├── atlas/          # Atlas handling\n│   ├── mod.rs      # Exports\n│   ├── manifest.rs # AtlasManifest, AtlasContextBlock\n│   └── loader.rs   # AtlasLoader\n├── context/        # Context Registry ★\n│   ├── mod.rs      # Exports\n│   ├── registry.rs # ContextRegistry\n│   └── matcher.rs  # ContextMatcher\n└── timing/         # Timers and rate limiting\n```\n\n## Key Files (★)\n- `resolver.rs` - Main CRA entry point, wires everything together\n- `event.rs` - Hash computation (NEVER reimplement elsewhere)\n- `context/` - Context injection pipeline",
+      "content_type": "text/markdown",
+      "keywords": ["module", "structure", "directory", "file", "where", "location"],
+      "inject_when": [],
+      "risk_tiers": []
+    },
+    {
+      "context_id": "read-before-modify",
+      "name": "Read Before Modify Rule",
+      "priority": 250,
+      "content": "# MANDATORY: Read Before Modify\n\n**You MUST read any file before modifying it.**\n\n## Why This Matters\n1. Understand existing patterns\n2. Avoid breaking working code\n3. See the actual implementation (not assumptions)\n4. Find the canonical way to do something\n\n## Especially Critical For\n- `trace/event.rs` - Contains compute_hash()\n- `trace/collector.rs` - Contains deferred mode\n- `carp/resolver.rs` - Main wiring\n- `context/registry.rs` - Context storage\n\n## Example\n```\n// WRONG: Assume and implement\n\"I'll add a hash function...\"\n\n// RIGHT: Read first\nRead trace/event.rs\n\"I see compute_hash() exists, I'll call that.\"\n```\n\n## The Hash Mistake\nI once reimplemented hash computation with JSON serialization instead of reading trace/event.rs and seeing canonical_json(). This caused chain verification failures. The fix was simply calling event.compute_hash().\n\n**Always read first. Always use existing implementations.**",
+      "content_type": "text/markdown",
+      "keywords": ["read", "before", "modify", "first", "check", "understand"],
+      "inject_when": [],
+      "risk_tiers": ["high", "critical"]
+    }
+  ],
+
+  "policies": [
+    {
+      "policy_id": "require-read-before-modify",
+      "type": "requires_approval",
+      "actions": ["trace.edit_*", "carp.edit_*", "context.edit_*"],
+      "reason": "You MUST read the target file before modifying. Pattern recognition without reading leads to subtle bugs."
+    },
+    {
+      "policy_id": "no-duplicate-hash-impl",
+      "type": "deny",
+      "actions": ["trace.create_hash_function"],
+      "reason": "Hash computation must ONLY exist in TRACEEvent::compute_hash(). Creating a second implementation causes chain verification failures."
+    },
+    {
+      "policy_id": "require-tests-before-commit",
+      "type": "requires_approval",
+      "actions": ["git.commit"],
+      "reason": "All tests must pass before committing changes. Run: cargo test --lib"
+    }
+  ],
+
+  "actions": [
+    {
+      "action_id": "trace.edit_event",
+      "name": "Edit TRACEEvent",
+      "description": "Modify trace/event.rs - contains canonical hash computation. HIGH RISK.",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "high"
+    },
+    {
+      "action_id": "trace.edit_collector",
+      "name": "Edit TraceCollector",
+      "description": "Modify trace/collector.rs - manages event chains and deferred mode",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "trace.edit_chain",
+      "name": "Edit ChainVerifier",
+      "description": "Modify trace/chain.rs - validates hash chain integrity",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "high"
+    },
+    {
+      "action_id": "trace.edit_buffer",
+      "name": "Edit Ring Buffer",
+      "description": "Modify trace/buffer.rs - lock-free concurrent buffer",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "carp.edit_resolver",
+      "name": "Edit Resolver",
+      "description": "Modify carp/resolver.rs - main CARP entry point, wires everything together",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "carp.edit_policy",
+      "name": "Edit Policy Evaluator",
+      "description": "Modify carp/policy.rs - policy evaluation logic",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "carp.edit_request",
+      "name": "Edit CARPRequest",
+      "description": "Modify carp/request.rs - request structure and validation",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "carp.edit_resolution",
+      "name": "Edit CARPResolution",
+      "description": "Modify carp/resolution.rs - resolution structure including ContextBlock",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "context.edit_registry",
+      "name": "Edit ContextRegistry",
+      "description": "Modify context/registry.rs - context storage and querying",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "medium"
+    },
+    {
+      "action_id": "context.edit_matcher",
+      "name": "Edit ContextMatcher",
+      "description": "Modify context/matcher.rs - condition evaluation for context injection",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "atlas.edit_manifest",
+      "name": "Edit AtlasManifest",
+      "description": "Modify atlas/manifest.rs - manifest structures",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "low"
+    },
+    {
+      "action_id": "atlas.edit_loader",
+      "name": "Edit AtlasLoader",
+      "description": "Modify atlas/loader.rs - atlas loading and validation",
+      "parameters_schema": {"type": "object"},
+      "risk_tier": "low"
+    }
+  ]
+}
