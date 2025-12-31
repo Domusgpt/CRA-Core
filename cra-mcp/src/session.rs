@@ -49,8 +49,13 @@ pub struct Session {
 impl Session {
     /// Create a new session
     pub fn new(agent_id: String, goal: String, active_atlases: Vec<String>, genesis_hash: String) -> Self {
+        Self::with_id(Uuid::new_v4().to_string(), agent_id, goal, active_atlases, genesis_hash)
+    }
+
+    /// Create a new session with a specific session_id
+    pub fn with_id(session_id: String, agent_id: String, goal: String, active_atlases: Vec<String>, genesis_hash: String) -> Self {
         Self {
-            session_id: Uuid::new_v4().to_string(),
+            session_id,
             agent_id,
             goal,
             started_at: Utc::now(),
@@ -153,7 +158,7 @@ impl SessionManager {
     }
 
     /// Start a new session
-    pub fn start_session(&self, agent_id: String, goal: String, atlas_hints: Option<Vec<String>>) -> McpResult<Session> {
+    pub fn start_session(&self, agent_id: String, goal: String, _atlas_hints: Option<Vec<String>>) -> McpResult<Session> {
         let mut resolver = self.resolver.write()
             .map_err(|_| McpError::Internal("Lock poisoned".to_string()))?;
 
@@ -169,8 +174,8 @@ impl SessionManager {
             .map(|e| e.event_hash.clone())
             .unwrap_or_else(|| "genesis".to_string());
 
-        // Create session record
-        let session = Session::new(agent_id, goal, active_atlases, genesis_hash);
+        // Create session record with the same session_id from the resolver
+        let session = Session::with_id(session_id.clone(), agent_id, goal, active_atlases, genesis_hash);
         let session_clone = session.clone();
 
         // Store session
