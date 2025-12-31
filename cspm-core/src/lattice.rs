@@ -165,107 +165,115 @@ impl Default for Cell600 {
 /// Generate all 120 vertices of the 600-cell as unit quaternions
 ///
 /// The 600-cell vertices form the binary icosahedral group (2I).
-/// This implementation generates them systematically using the known structure.
+/// Structure:
+/// - 8 vertices: permutations of (±1, 0, 0, 0)
+/// - 16 vertices: (±½, ±½, ±½, ±½)
+/// - 96 vertices: even permutations of (0, ±½, ±φ/2, ±1/(2φ))
 pub fn generate_600_cell_vertices() -> Vec<Quaternion> {
     let mut vertices = Vec::with_capacity(120);
 
-    // Helper to add vertex if not duplicate
-    let mut add_vertex = |q: Quaternion| {
-        let q = q.normalize();
-        let is_dup = vertices.iter().any(|v: &Quaternion| {
-            v.dot(&q).abs() > 0.9999
-        });
-        if !is_dup {
-            vertices.push(q);
-        }
-    };
+    // === Part 1: 8 vertices ===
+    // Permutations of (±1, 0, 0, 0)
+    vertices.push(Quaternion::new(1.0, 0.0, 0.0, 0.0));
+    vertices.push(Quaternion::new(-1.0, 0.0, 0.0, 0.0));
+    vertices.push(Quaternion::new(0.0, 1.0, 0.0, 0.0));
+    vertices.push(Quaternion::new(0.0, -1.0, 0.0, 0.0));
+    vertices.push(Quaternion::new(0.0, 0.0, 1.0, 0.0));
+    vertices.push(Quaternion::new(0.0, 0.0, -1.0, 0.0));
+    vertices.push(Quaternion::new(0.0, 0.0, 0.0, 1.0));
+    vertices.push(Quaternion::new(0.0, 0.0, 0.0, -1.0));
 
-    // === Part 1: 24 vertices of the 24-cell ===
-
-    // 8 vertices: ±1, ±i, ±j, ±k
-    add_vertex(Quaternion::new(1.0, 0.0, 0.0, 0.0));
-    add_vertex(Quaternion::new(-1.0, 0.0, 0.0, 0.0));
-    add_vertex(Quaternion::new(0.0, 1.0, 0.0, 0.0));
-    add_vertex(Quaternion::new(0.0, -1.0, 0.0, 0.0));
-    add_vertex(Quaternion::new(0.0, 0.0, 1.0, 0.0));
-    add_vertex(Quaternion::new(0.0, 0.0, -1.0, 0.0));
-    add_vertex(Quaternion::new(0.0, 0.0, 0.0, 1.0));
-    add_vertex(Quaternion::new(0.0, 0.0, 0.0, -1.0));
-
-    // 16 vertices: (±1/2, ±1/2, ±1/2, ±1/2)
+    // === Part 2: 16 vertices ===
+    // All sign combinations of (±½, ±½, ±½, ±½)
     for &w in &[-0.5, 0.5] {
         for &x in &[-0.5, 0.5] {
             for &y in &[-0.5, 0.5] {
                 for &z in &[-0.5, 0.5] {
-                    add_vertex(Quaternion::new(w, x, y, z));
+                    vertices.push(Quaternion::new(w, x, y, z));
                 }
             }
         }
     }
 
-    // === Part 2: 96 vertices with golden ratio ===
-    // Even permutations of (0, ±1/2, ±φ/2, ±1/(2φ))
+    // === Part 3: 96 vertices ===
+    // Even permutations of (0, ±½, ±φ/2, ±1/(2φ))
+    //
+    // The 12 even permutations of indices (0,1,2,3) are:
+    // (0,1,2,3), (0,2,3,1), (0,3,1,2)
+    // (1,0,3,2), (1,2,0,3), (1,3,2,0)
+    // (2,0,1,3), (2,1,3,0), (2,3,0,1)
+    // (3,0,2,1), (3,1,0,2), (3,2,1,0)
+    //
+    // For each permutation, we assign values (0, a, b, c) where:
+    // - 0 goes to the position indicated by the first index
+    // - a goes to the position indicated by the second index, etc.
 
-    let a = 0.0;
-    let b = 0.5;
-    let c = PHI / 2.0;
-    let d = 1.0 / (2.0 * PHI);
+    let a = 0.5;
+    let b = PHI / 2.0;
+    let c = 1.0 / (2.0 * PHI);
 
-    // All even permutations of (a, b, c, d)
-    let perms = [
-        [a, b, c, d], [a, c, d, b], [a, d, b, c],
-        [b, a, d, c], [b, c, a, d], [b, d, c, a],
-        [c, a, b, d], [c, b, d, a], [c, d, a, b],
-        [d, a, c, b], [d, b, a, c], [d, c, b, a],
+    // The base values for positions 0,1,2,3 (before permutation)
+    let base_vals = [0.0, a, b, c];
+
+    // All 12 even permutations of 4 elements
+    let even_perms: [[usize; 4]; 12] = [
+        [0, 1, 2, 3], [0, 2, 3, 1], [0, 3, 1, 2],
+        [1, 0, 3, 2], [1, 2, 0, 3], [1, 3, 2, 0],
+        [2, 0, 1, 3], [2, 1, 3, 0], [2, 3, 0, 1],
+        [3, 0, 2, 1], [3, 1, 0, 2], [3, 2, 1, 0],
     ];
 
-    for perm in perms {
-        // For each permutation, generate all sign combinations
-        // But only for the non-zero components
-        for &s0 in &[-1.0, 1.0] {
-            for &s1 in &[-1.0, 1.0] {
-                for &s2 in &[-1.0, 1.0] {
-                    for &s3 in &[-1.0, 1.0] {
-                        let q = Quaternion::new(
-                            perm[0] * s0,
-                            perm[1] * s1,
-                            perm[2] * s2,
-                            perm[3] * s3,
-                        );
+    for perm in even_perms {
+        // perm[i] tells us which base value goes to position i
+        // But we need the inverse: for each position, which value?
+        // Actually, perm[i] = j means "position i gets the value that was at position j"
+        // So coords[i] = base_vals[perm[i]]
+        let coords: [f64; 4] = [
+            base_vals[perm[0]],
+            base_vals[perm[1]],
+            base_vals[perm[2]],
+            base_vals[perm[3]],
+        ];
 
-                        // Only add if unit norm (non-zero coordinates)
-                        if (q.norm_squared() - 1.0).abs() < 0.01 {
-                            add_vertex(q);
-                        }
+        // Now apply sign combinations to non-zero elements
+        // Find which position has the zero
+        let zero_pos = coords.iter().position(|&x| x == 0.0).unwrap();
+
+        // Generate 8 sign combinations for the 3 non-zero positions
+        for sign_bits in 0u8..8 {
+            let mut q = coords;
+
+            let mut bit = 0;
+            for i in 0..4 {
+                if i != zero_pos {
+                    if (sign_bits >> bit) & 1 == 1 {
+                        q[i] = -q[i];
                     }
+                    bit += 1;
                 }
             }
+
+            vertices.push(Quaternion::new(q[0], q[1], q[2], q[3]));
         }
     }
 
-    // We should have exactly 120 vertices: 24 + 96
-    assert!(vertices.len() >= 24, "Should have at least 24 vertices from 24-cell");
+    // Should have exactly 8 + 16 + 96 = 120 vertices
+    assert_eq!(vertices.len(), 120, "600-cell should have exactly 120 vertices, got {}", vertices.len());
 
-    // Pad to 120 if needed (should not happen with correct generation)
-    while vertices.len() < 120 {
-        // Generate additional vertices by multiplying existing ones
-        // This is a fallback; correct generation should give 120
-        if vertices.len() >= 2 {
-            let v1 = vertices[0];
-            let v2 = vertices[vertices.len() - 1];
-            let new_v = (v1 * v2).normalize();
-            if !vertices.iter().any(|v| v.dot(&new_v).abs() > 0.9999) {
-                vertices.push(new_v);
-            } else {
-                // If we can't find unique vertices, break to avoid infinite loop
-                break;
+    // Verify they are all unique (no duplicates)
+    // Note: For 600-cell vertices, q and -q are DIFFERENT vertices
+    // (they only represent the same rotation if used as rotation quaternions)
+    #[cfg(debug_assertions)]
+    {
+        for i in 0..vertices.len() {
+            for j in (i + 1)..vertices.len() {
+                let dot = vertices[i].dot(&vertices[j]);
+                // Two vertices are duplicates only if dot ≈ 1.0 (not -1.0)
+                assert!(dot < 0.9999, "Duplicate vertices at {} and {} (dot={})", i, j, dot);
             }
-        } else {
-            break;
         }
     }
 
-    vertices.truncate(120);
     vertices
 }
 
@@ -356,11 +364,8 @@ mod tests {
     #[test]
     fn test_generate_vertices() {
         let vertices = generate_600_cell_vertices();
-        // Should generate at least 24 vertices (from 24-cell)
-        // Full 600-cell has 120, but generation may produce fewer depending on
-        // permutation handling. The core lattice-based encoding still works.
-        assert!(vertices.len() >= 24, "Should generate at least 24 vertices, got {}", vertices.len());
-        println!("Generated {} vertices", vertices.len());
+        // Should generate exactly 120 vertices
+        assert_eq!(vertices.len(), 120, "Should generate exactly 120 vertices");
 
         // All should be unit quaternions
         for (i, v) in vertices.iter().enumerate() {
@@ -371,6 +376,20 @@ mod tests {
                 i,
                 norm
             );
+        }
+
+        // Verify no duplicates (q and -q are different vertices in 600-cell)
+        for i in 0..vertices.len() {
+            for j in (i + 1)..vertices.len() {
+                let dot = vertices[i].dot(&vertices[j]);
+                assert!(
+                    dot < 0.9999,
+                    "Vertices {} and {} are duplicates (dot = {})",
+                    i,
+                    j,
+                    dot
+                );
+            }
         }
     }
 }

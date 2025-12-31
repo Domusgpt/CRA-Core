@@ -122,14 +122,33 @@ impl Quaternion {
         2.0 * (1.0 - dot * dot).sqrt().asin()
     }
 
-    /// Chordal distance (faster, monotonic with geodesic)
+    /// Chordal distance for rotations (treats q and -q as equivalent)
     ///
-    /// For nearest-neighbor lookup, chordal distance gives same result
-    /// but avoids expensive asin computation.
+    /// For nearest-neighbor lookup when quaternions represent rotations.
+    /// q and -q represent the same rotation, so we use abs(dot).
     #[inline]
-    pub fn chordal_distance_squared(&self, other: &Self) -> f64 {
+    pub fn chordal_distance_squared_rotation(&self, other: &Self) -> f64 {
         let dot = self.dot(other).abs();
         2.0 * (1.0 - dot)
+    }
+
+    /// Euclidean distance squared in R⁴
+    ///
+    /// For nearest-neighbor lookup when quaternions are treated as points
+    /// in 4D space (like 600-cell vertices). q and -q are DIFFERENT points.
+    #[inline]
+    pub fn euclidean_distance_squared(&self, other: &Self) -> f64 {
+        let dw = self.w - other.w;
+        let dx = self.x - other.x;
+        let dy = self.y - other.y;
+        let dz = self.z - other.z;
+        dw * dw + dx * dx + dy * dy + dz * dz
+    }
+
+    /// Chordal distance (alias for euclidean for backwards compatibility)
+    #[inline]
+    pub fn chordal_distance_squared(&self, other: &Self) -> f64 {
+        self.euclidean_distance_squared(other)
     }
 
     /// Rotate a vector by this quaternion: v' = q v q*
