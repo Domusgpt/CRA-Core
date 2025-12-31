@@ -31,8 +31,18 @@ pub use resolution::{CARPResolution, Decision, AllowedAction, DeniedAction, Cons
 pub use policy::{PolicyEvaluator, PolicyResult};
 pub use resolver::Resolver;
 pub use checkpoint::{
-    CheckpointType, CheckpointConfig, CheckpointEvaluator,
+    // Core checkpoint types
+    CheckpointType, CheckpointMode, CheckpointConfig, CheckpointEvaluator,
     TriggeredCheckpoint, TriggerData, SessionCheckpointState,
+    // Steward-defined checkpoints
+    StewardCheckpointDef, CheckpointTrigger, CheckpointQuestion,
+    ResponseType, AnswerValidation, InvalidAnswerAction,
+    // Guidance
+    GuidanceBlock, GuidanceFormat,
+    // Response validation
+    CheckpointResponse, AnswerValue, CheckpointValidator,
+    CheckpointValidation, QuestionValidationResult, CheckpointAction,
+    // Config types
     SessionStartConfig, SessionEndConfig, KeywordMatchConfig,
     ActionPreConfig, ActionCheckpointConfig, RiskThresholdConfig,
     TimeIntervalConfig, CountIntervalConfig, MatchMode,

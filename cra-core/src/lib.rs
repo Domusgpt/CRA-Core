@@ -78,6 +78,9 @@ pub mod runtime;
 pub use carp::{
     CARPRequest, CARPResolution, Decision, AllowedAction, DeniedAction,
     Constraint, Resolver, RiskTier, ContextBlock,
+    // Checkpoint system
+    CheckpointType, CheckpointMode, CheckpointEvaluator, StewardCheckpointDef,
+    CheckpointTrigger, CheckpointQuestion, GuidanceBlock, CheckpointValidator,
 };
 pub use context::{
     ContextRegistry, LoadedContext, ContextSource, ContextMatcher,
