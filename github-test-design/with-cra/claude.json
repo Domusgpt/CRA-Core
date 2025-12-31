@@ -1,0 +1,10 @@
+{
+  "name": "with-cra-test",
+  "description": "Test agent WITH CRA governance",
+  "mcpServers": {
+    "cra": {
+      "command": "../../target/release/cra-mcp-server",
+      "args": ["-a", "../../test-atlases"]
+    }
+  }
+}

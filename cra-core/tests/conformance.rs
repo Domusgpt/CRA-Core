@@ -3,7 +3,7 @@
 //! These tests verify that the Rust implementation matches the protocol specification
 //! by comparing output against known-good golden traces.
 
-use cra_core::atlas::{AtlasManifest, AtlasContextBlock};
+use cra_core::atlas::{AtlasManifest, AtlasContextBlock, InjectMode};
 use cra_core::carp::{CARPRequest, Decision, Resolver};
 use cra_core::trace::EventType;
 use serde_json::{json, Value};
@@ -423,6 +423,8 @@ fn conformance_context_injection_keyword_match() {
             priority: 100,
             content: "CRITICAL: Use compute_hash() only.".to_string(),
             content_type: "text/markdown".to_string(),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
             inject_when: vec![],
             keywords: vec!["hash".to_string(), "sha256".to_string()],
             risk_tiers: vec![],
@@ -481,6 +483,8 @@ fn conformance_context_injection_emits_trace_event() {
             priority: 50,
             content: "Test content".to_string(),
             content_type: "text/plain".to_string(),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
             inject_when: vec![],
             keywords: vec!["trace-test-keyword".to_string()],
             risk_tiers: vec![],
@@ -545,6 +549,8 @@ fn conformance_context_block_required_fields() {
             priority: 75,
             content: "The actual content".to_string(),
             content_type: "text/markdown".to_string(),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
             inject_when: vec![],
             keywords: vec!["field-check".to_string()],
             risk_tiers: vec![],
@@ -596,6 +602,8 @@ fn conformance_context_content_preserved() {
             priority: 100,
             content: original_content.to_string(),
             content_type: "text/plain".to_string(),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
             inject_when: vec![],
             keywords: vec!["preserve-content".to_string()],
             risk_tiers: vec![],
@@ -643,6 +651,8 @@ fn conformance_context_chain_integrity() {
             priority: 100,
             content: "Content 1".to_string(),
             content_type: "text/plain".to_string(),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
             inject_when: vec![],
             keywords: vec!["chain-test".to_string()],
             risk_tiers: vec![],
@@ -653,6 +663,8 @@ fn conformance_context_chain_integrity() {
             priority: 50,
             content: "Content 2".to_string(),
             content_type: "text/plain".to_string(),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
             inject_when: vec![],
             keywords: vec!["chain-test".to_string()],
             risk_tiers: vec![],
