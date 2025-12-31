@@ -330,3 +330,32 @@ Wrapper is so thin agents don't notice it.
 | Building | IS the onboarding, consent, auth |
 | Atlases | Mostly free, paid is future potential |
 | Stewards | Configure atlas, rules, and external integrations |
+
+---
+
+## Documents Created
+
+| Document | Purpose |
+|----------|---------|
+| CRA-WRAPPER-SYSTEM.md | The wrapper concept fully explained |
+| CRA-MASTER-PLAN.md | Overview of entire system |
+| CRA-TRACE-ASYNC.md | Async TRACE with caching |
+| MCP-INTEGRATION-DESIGN.md | MCP server design |
+| CRA-BOOTSTRAP-PROTOCOL.md | Bootstrap handshake |
+| CRA-STEWARD-CONFIG.md | Steward controls |
+| CRA-AUTHENTICATION.md | Auth modes |
+| CRA-ARCHITECTURE-SIMPLIFIED.md | Three roles |
+| CRA-AGENT-MD-GENERATION.md | Generated .md for agents |
+| CRA-MCP-HELP-SYSTEM.md | Help system |
+| CRA-INTERACTIVE-ONBOARDING.md | Discovery questions |
+
+---
+
+## Documents Still Needed
+
+| Document | Purpose |
+|----------|---------|
+| CRA-CHECKPOINT-SYSTEM.md | Full checkpoint spec |
+| CRA-WRAPPER-PROTOCOL.md | Exact wrapper construction spec |
+
+*Note: Both of these documents have now been created and are available in the docs/ directory.*
