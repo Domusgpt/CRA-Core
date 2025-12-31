@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoundWave - Stream Your World</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* VIB3+ Background Layer */
+    .vib3-bg {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+    }
+
+    .vib3-bg iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Content Layer */
+    .content {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      max-width: 800px;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px);
+      padding: 4rem 3rem;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .logo {
+      font-size: 4rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .tagline {
+      font-size: 1.5rem;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 2rem;
+      font-weight: 300;
+    }
+
+    .description {
+      font-size: 1.1rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 3rem;
+      line-height: 1.6;
+    }
+
+    /* CTA Button */
+    .cta-button {
+      display: inline-block;
+      padding: 1.2rem 3rem;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    .cta-button:active {
+      transform: translateY(0);
+    }
+
+    /* Audio Control Toggle */
+    .audio-toggle {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      padding: 1rem 1.5rem;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50px;
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+
+    .audio-toggle:hover {
+      background: rgba(0, 0, 0, 0.8);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Feature Pills */
+    .features {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .feature-pill {
+      padding: 0.5rem 1.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 25px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      .logo {
+        font-size: 2.5rem;
+      }
+
+      .tagline {
+        font-size: 1.2rem;
+      }
+
+      .hero {
+        padding: 2rem 1.5rem;
+      }
+
+      .audio-toggle {
+        bottom: 1rem;
+        right: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- VIB3+ Background -->
+  <div class="vib3-bg">
+    <iframe id="vib3-iframe" src="https://domusgpt.github.io/vib3-plus-engine/"></iframe>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <div class="hero">
+      <h1 class="logo">SoundWave</h1>
+      <p class="tagline">Stream Your World</p>
+      <p class="description">
+        Experience music like never before with unlimited streaming,
+        personalized playlists, and crystal-clear audio quality.
+        Your soundtrack to life starts here.
+      </p>
+      <a href="#" class="cta-button">Start Listening Free</a>
+
+      <div class="features">
+        <span class="feature-pill">70M+ Songs</span>
+        <span class="feature-pill">HD Audio</span>
+        <span class="feature-pill">Offline Mode</span>
+        <span class="feature-pill">No Ads</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Reactivity Toggle -->
+  <button class="audio-toggle" id="audioToggle">Toggle Audio Reactivity</button>
+
+  <script>
+    // Wait for iframe to load
+    const iframe = document.getElementById('vib3-iframe');
+
+    iframe.addEventListener('load', () => {
+      const vib3Window = iframe.contentWindow;
+
+      // Switch to holographic system (optimized for audio)
+      vib3Window.switchSystem('holographic');
+
+      // Enable audio reactivity
+      vib3Window.toggleAudio();
+
+      // Configure audio-reactive parameters
+      // Bass affects intensity, mid affects rotation, high affects color
+      vib3Window.toggleAudioReactivity('bass', 'intensity', true);
+      vib3Window.toggleAudioReactivity('mid', 'rotation', true);
+      vib3Window.toggleAudioReactivity('high', 'color', true);
+
+      // Set a nice purple/magenta hue to match the brand
+      vib3Window.updateParameter('hue', 280);
+    });
+
+    // Toggle audio reactivity on/off with button
+    document.getElementById('audioToggle').addEventListener('click', () => {
+      const vib3Window = iframe.contentWindow;
+      vib3Window.toggleAudio();
+    });
+  </script>
+</body>
+</html>
