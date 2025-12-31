@@ -45,6 +45,11 @@ cra-core/src/
 | CRA-STEWARD-CONFIG.md | ✅ Done |
 | CRA-AUTHENTICATION.md | ✅ Done |
 | CRA-ARCHITECTURE-SIMPLIFIED.md | ✅ Done |
+| CRA-WRAPPER-PROTOCOL.md | ✅ Done |
+| CRA-CHECKPOINT-SYSTEM.md | ✅ Done |
+| CRA-TRACE-EVENTS.md | ✅ Done |
+| CRA-ATLAS-SCHEMA-V2.md | ✅ Done |
+| CRA-ECOSYSTEM.md | ✅ Done |
 
 ### What Exists (Atlases)
 
@@ -56,83 +61,15 @@ cra-core/src/
 
 ---
 
-## Phase 1: Complete Design Documentation
+## Phase 1: Complete Design Documentation ✅ COMPLETE
 
-### 1.1 Wrapper Protocol Specification
-
-**Status:** Not started
-
-**Needs to define:**
-- Exact wrapper structure for different environments
-  - Claude Code (hooks)
-  - API agents (middleware)
-  - Custom agents (decorators)
-- Required vs optional components
-- How wrapper reports to CRA
-- How CRA injects into wrapper
-- Verification protocol
-
-**Deliverable:** `CRA-WRAPPER-PROTOCOL.md`
-
----
-
-### 1.2 Checkpoint System Specification
-
-**Status:** Not started
-
-**Needs to define:**
-- All checkpoint trigger types
-- How atlas configures checkpoints
-- Checkpoint evaluation logic
-- What happens at each checkpoint type
-- Cache invalidation at checkpoints
-
-**Deliverable:** `CRA-CHECKPOINT-SYSTEM.md`
-
----
-
-### 1.3 MCP Server Specification
-
-**Status:** Partial (design exists, no spec)
-
-**Needs to define:**
-- Exact tool schemas (input/output)
-- Bootstrap flow step-by-step
-- Wrapper construction guidance protocol
-- Verification steps
-- Error handling
-
-**Deliverable:** `CRA-MCP-SPEC.md`
-
----
-
-### 1.4 TRACE Event Types
-
-**Status:** Partial (some in code, not documented)
-
-**Needs to define:**
-- All event types
-- Required fields per type
-- Hash computation per type
-- Async vs sync designation
-- Alert triggers
-
-**Deliverable:** `CRA-TRACE-EVENTS.md`
-
----
-
-### 1.5 Atlas Schema v2
-
-**Status:** Partial (base exists, steward config not in schema)
-
-**Needs to define:**
-- Steward configuration block
-- Per-context tier/delivery settings
-- Checkpoint configuration
-- External integration hooks
-- Full JSON schema
-
-**Deliverable:** `CRA-ATLAS-SCHEMA-V2.md` + `atlas-schema.json`
+| Document | Status | Description |
+|----------|--------|-------------|
+| `CRA-WRAPPER-PROTOCOL.md` | ✅ | Wrapper structure, platform implementations, plugins |
+| `CRA-CHECKPOINT-SYSTEM.md` | ✅ | Checkpoint types, triggers, evaluation, handlers |
+| `CRA-TRACE-EVENTS.md` | ✅ | Event types, fields, async/sync, extensibility |
+| `CRA-ATLAS-SCHEMA-V2.md` | ✅ | Full schema with steward, marketplace config |
+| `CRA-ECOSYSTEM.md` | ✅ | Plugins, marketplace, skills, creator platform |
 
 ---
 

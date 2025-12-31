@@ -35,6 +35,7 @@ mod replay;
 mod raw;
 mod buffer;
 mod processor;
+mod queue;
 
 pub use event::{TRACEEvent, EventType, EventPayload};
 pub use collector::{TraceCollector, DeferredConfig};
@@ -43,6 +44,7 @@ pub use replay::{ReplayEngine, ReplayResult, ReplayDiff};
 pub use raw::RawEvent;
 pub use buffer::{TraceRingBuffer, BufferStats};
 pub use processor::{TraceProcessor, ProcessorConfig, ProcessorHandle};
+pub use queue::{AsyncTraceQueue, AsyncQueueConfig, QueueStats};
 
 /// TRACE protocol version
 pub const VERSION: &str = "1.0";

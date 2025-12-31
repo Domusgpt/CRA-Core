@@ -66,6 +66,7 @@ pub mod context;
 pub mod error;
 pub mod storage;
 pub mod timing;
+pub mod cache;
 
 #[cfg(feature = "ffi")]
 pub mod ffi;
@@ -84,7 +85,7 @@ pub use context::{
 pub use trace::{
     TRACEEvent, EventType, TraceCollector, ChainVerification, ReplayResult,
     RawEvent, TraceRingBuffer, BufferStats, TraceProcessor, ProcessorConfig, ProcessorHandle,
-    DeferredConfig,
+    DeferredConfig, AsyncTraceQueue, AsyncQueueConfig, QueueStats,
 };
 pub use atlas::{
     AtlasManifest, AtlasAction, AtlasPolicy, AtlasCapability, PolicyType,
@@ -99,6 +100,10 @@ pub use timing::{
     TraceBatcher, HeartbeatMetrics,
     TimerManager, TimerHandler, NullTimerHandler,
     MockTimerBackend, StdTimerBackend,
+};
+pub use cache::{
+    CRACache, ContextCache, PolicyCache, CachedContext, CachedPolicy,
+    ContextCacheConfig, PolicyCacheConfig, CacheCombinedStats,
 };
 
 /// Protocol version constants
