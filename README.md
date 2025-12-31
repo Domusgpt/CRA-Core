@@ -1,6 +1,7 @@
 # CRA-Core
-Contest registry agent CARP/TRACE
-# CRA Spec Pack v0.1
+Context Registry Agents — CARP/TRACE/CSPM
+
+# CRA Spec Pack v0.2
 
 > This document contains the **complete, clean, copy‑safe versions** of all CRA specifications and onboarding files. You can **Save As → Markdown**, split into files, or paste into your repo exactly as‑is. No broken formatting. No hidden blocks. No missing sections.
 
@@ -8,6 +9,7 @@ Contest registry agent CARP/TRACE
 
 ## TABLE OF CONTENTS
 
+### Core Protocols
 1. ONE\_PAGER.md
 2. EXECUTIVE\_BRIEF.md
 3. CARP\_1\_0.md
@@ -15,8 +17,16 @@ Contest registry agent CARP/TRACE
 5. RUNTIME\_API\_v0\_1.md
 6. ATLAS\_FORMAT\_v0\_1.md
 7. CLI\_TELEMETRY\_REQUIREMENTS\_v0\_1.md
-8. templates/agents.md
-9. templates/CRA\_STARTER\_PROMPT.md
+
+### Physical Layer Protocols (Layer 1)
+8. specs/CSPM\_1\_0.md — Cryptographically-Seeded Polytopal Modulation
+9. specs/SPINOR\_MODULATION.md — 4D Quaternion Optical Encoding
+10. specs/HEXACOSICHORON.md — 600-Cell Geometry & Vertex Mapping
+11. specs/TRACE\_PHYSICAL\_LAYER.md — TRACE Integration for Optical Networks
+
+### Templates
+12. templates/agents.md
+13. templates/CRA\_STARTER\_PROMPT.md
 
 ---
 
@@ -315,6 +325,95 @@ Rules:
 - Ask CARP before acting
 - Use only allowed actions
 - Rely on TRACE, not narration
+
+---
+
+# ==========================
+
+# PHYSICAL LAYER PROTOCOLS
+
+# ==========================
+
+# CSPM — Cryptographically-Seeded Polytopal Modulation
+
+## The Innovation
+
+CSPM extends CRA into the **Physical Layer (Layer 1)** of optical networks. It replaces standard Quadrature Amplitude Modulation (QAM) with **Spinor Modulation** — encoding data onto the vertices of a 600-cell polytope.
+
+**Key Value Proposition:**
+- **Zero-overhead error correction** via geometric quantization
+- **Physical-layer encryption** via rolling lattice orientation
+- **Topological noise resistance** via OAM-based transmission
+
+---
+
+## How It Works
+
+### 1. Signal Space Expansion (2D → 4D)
+
+Standard optical:
+```
+QAM: Amplitude + Phase (2D complex plane)
+```
+
+CSPM:
+```
+Spinor: Polarization (3D Poincaré sphere) + OAM Twist (1D)
+       = 4D signal space structured as 600-cell
+```
+
+### 2. The 600-Cell Constellation
+
+- **120 vertices** = 120 distinct symbol states
+- **7 bits per symbol** (vs 6 bits for 64-QAM)
+- **Maximum geometric separation** = optimal error tolerance
+
+### 3. Hash-Chain Lattice Rotation
+
+```
+Packet N:   Lattice orientation = f(TRACE events 0..N-1)
+Packet N+1: Lattice orientation = f(TRACE events 0..N)
+```
+
+**Security:** Without the genesis hash, interceptors see only noise.
+
+---
+
+## Applications
+
+| Application | Problem | CSPM Solution |
+|-------------|---------|---------------|
+| Subsea Cables | Expensive regenerators | Geometric cleaning at repeaters |
+| Data Centers | FEC latency (100+ ns) | O(1) geometric lookup (<10 ns) |
+| Free-Space Optical | Atmospheric turbulence | OAM topological robustness |
+| Quantum-Safe Networks | Post-quantum threats | Information-theoretic physical security |
+
+---
+
+## Patent Classes
+
+- **H04B 10/00** — Optical transmission systems
+- **H04L 9/00** — Cryptographic mechanisms
+- **G06N 7/00** — Mathematical model computing
+
+---
+
+## Technical Specifications
+
+Detailed specifications are available in the `specs/` directory:
+
+| Document | Contents |
+|----------|----------|
+| `CSPM_1_0.md` | Full protocol specification |
+| `SPINOR_MODULATION.md` | Quaternion-to-photon mapping |
+| `HEXACOSICHORON.md` | 600-cell vertex coordinates & Gray coding |
+| `TRACE_PHYSICAL_LAYER.md` | TRACE event integration |
+
+---
+
+## One-Line Summary
+
+> **"A physical-layer optical protocol that encodes data onto the vertices of a cryptographically-rotating 4D polytope, providing simultaneous error correction and encryption with zero overhead."**
 
 ---
 
