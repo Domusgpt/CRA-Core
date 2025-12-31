@@ -408,6 +408,81 @@ Detailed specifications are available in the `specs/` directory:
 | `SPINOR_MODULATION.md` | Quaternion-to-photon mapping |
 | `HEXACOSICHORON.md` | 600-cell vertex coordinates & Gray coding |
 | `TRACE_PHYSICAL_LAYER.md` | TRACE event integration |
+| `VALIDATION_REPORT.md` | Monte Carlo simulation results |
+
+---
+
+## Rust Implementation: cspm-core
+
+A complete Rust implementation is available in `cspm-core/`:
+
+### Quick Start
+
+```rust
+use cspm_core::{CspmEncoder, CspmDecoder, GenesisConfig};
+
+// Initialize with shared secret
+let config = GenesisConfig::new(b"shared_secret");
+let mut encoder = CspmEncoder::new(config.clone());
+let mut decoder = CspmDecoder::new(config);
+
+// Encode data
+let symbols = encoder.encode_bytes(b"Hello, CSPM!").unwrap();
+
+// Simulate noisy channel (in practice, transmitted optically)
+let quaternions: Vec<_> = symbols.iter().map(|s| s.quaternion).collect();
+
+// Decode with geometric error correction
+let decoded = decoder.decode_to_bytes(&quaternions).unwrap();
+```
+
+### Module Structure
+
+```
+cspm-core/
+├── src/
+│   ├── lib.rs              # Main API & re-exports
+│   ├── quaternion/         # 4D quaternion mathematics
+│   ├── polytope/           # 600-cell geometry
+│   │   ├── vertices.rs     # Hexacosichoron generation
+│   │   ├── voronoi.rs      # O(1) nearest vertex lookup
+│   │   └── gray_code.rs    # Hamming-optimized bit mapping
+│   ├── modulation/         # Encoder/Decoder
+│   │   ├── encoder.rs      # Bits → Quaternion → OpticalState
+│   │   ├── decoder.rs      # OpticalState → Quaternion → Bits
+│   │   └── optical.rs      # Stokes vectors & OAM modes
+│   ├── crypto/             # Hash chain & lattice rotation
+│   ├── simulation/         # Channel models & BER testing
+│   │   ├── fiber.rs        # SMF-28: PMD, dispersion, ASE
+│   │   ├── freespace.rs    # Kolmogorov turbulence
+│   │   ├── oam.rs          # Mode sorting & crosstalk
+│   │   ├── hardware.rs     # SLM, detector, ADC models
+│   │   ├── monte_carlo.rs  # BER curve generation
+│   │   └── baseline.rs     # 64-QAM + LDPC comparison
+│   └── trace_integration/  # TRACE event emission
+└── examples/
+    ├── basic_transmission.rs
+    └── channel_validation.rs
+```
+
+### Running Tests
+
+```bash
+cd cspm-core
+cargo test          # Run all 77 tests
+cargo run --example channel_validation  # Generate BER curves
+```
+
+### Key Results (Validated)
+
+| Metric | Value |
+|--------|-------|
+| Constellation | 600-cell (120 vertices) |
+| Bits/symbol | 6.9 (log₂120) |
+| Error correction | Geometric quantization |
+| Correction radius | 0.309 (d_min/2) |
+| AWGN BER @ 20dB | < 10⁻³ |
+| AWGN BER @ 25dB | ~0 |
 
 ---
 
