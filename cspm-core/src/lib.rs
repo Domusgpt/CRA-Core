@@ -41,6 +41,8 @@ pub mod simulation;
 pub mod equalization;
 pub mod sync;
 pub mod performance;
+pub mod hardware;
+pub mod geometry;
 
 // Re-exports for convenience
 pub use quaternion::Quaternion;
@@ -52,6 +54,8 @@ pub use simulation::{ChannelModel, BerSimulator, BerCurve};
 pub use equalization::{AdaptiveEqualizer, ChannelRotation, PilotPattern};
 pub use sync::{SyncManager, SyncConfig, Frame, FrameBuilder, Checkpoint};
 pub use performance::{BatchEncoder, BatchDecoder, SimdVoronoi};
+pub use hardware::{SlmController, CoherentReceiver, HardwareConfig};
+pub use geometry::{Polytope, PolychoronType, create_polytope};
 
 /// Protocol version
 pub const CSPM_VERSION: &str = "1.0";
