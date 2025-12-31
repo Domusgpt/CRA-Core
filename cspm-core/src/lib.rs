@@ -40,6 +40,7 @@ pub mod trace_integration;
 pub mod simulation;
 pub mod equalization;
 pub mod sync;
+pub mod performance;
 
 // Re-exports for convenience
 pub use quaternion::Quaternion;
@@ -50,6 +51,7 @@ pub use trace_integration::{TraceEvent, CspmTraceEmitter};
 pub use simulation::{ChannelModel, BerSimulator, BerCurve};
 pub use equalization::{AdaptiveEqualizer, ChannelRotation, PilotPattern};
 pub use sync::{SyncManager, SyncConfig, Frame, FrameBuilder, Checkpoint};
+pub use performance::{BatchEncoder, BatchDecoder, SimdVoronoi};
 
 /// Protocol version
 pub const CSPM_VERSION: &str = "1.0";
