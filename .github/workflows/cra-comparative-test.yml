@@ -17,6 +17,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Setup
         run: mkdir -p output
 
@@ -25,27 +30,33 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           npm install -g @anthropic-ai/claude-code
-          claude --model sonnet --print "
+
+          # Run Claude with the task - it will use tools to create files
+          claude -p "
           Task: ${{ github.event.inputs.task_description }}
 
           Requirements:
-          1. Create complete HTML file
+          1. Create complete HTML file at output/index.html
           2. Use VIB3+ for animated background
           3. Make it audio-reactive
           4. Include styling and call-to-action
 
-          Save to: output/index.html
-
-          Also create output/REPORT.md documenting:
+          Then create output/REPORT.md documenting:
           - What you knew vs guessed about VIB3+
           - Confidence level 1-10
-          "
+
+          Create both files now.
+          " --allowedTools "Write,Edit,Bash" --max-turns 20
+
+      - name: List output
+        run: ls -la output/ || echo "No output directory"
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: without-cra
           path: output/
+          if-no-files-found: warn
 
   test-with-cra:
     runs-on: ubuntu-latest
@@ -54,6 +65,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -81,29 +97,35 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           npm install -g @anthropic-ai/claude-code
-          claude --model sonnet --print "
+
+          # Run Claude with CRA MCP available
+          claude -p "
           Task: ${{ github.event.inputs.task_description }}
 
           Requirements:
-          1. Create complete HTML file
+          1. Create complete HTML file at output/index.html
           2. Use VIB3+ for animated background
           3. Make it audio-reactive
           4. Include styling and call-to-action
 
           Use CRA tools.
 
-          Save to: output/index.html
-
-          Also create output/REPORT.md documenting:
+          Then create output/REPORT.md documenting:
           - What CRA context you received
           - Confidence level 1-10
-          "
+
+          Create both files now.
+          " --allowedTools "Write,Edit,Bash,mcp__cra__*" --max-turns 20
+
+      - name: List output
+        run: ls -la output/ || echo "No output directory"
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: with-cra
           path: output/
+          if-no-files-found: warn
 
   compare:
     needs: [test-without-cra, test-with-cra]
@@ -112,21 +134,24 @@ jobs:
     steps:
       - name: Download results
         uses: actions/download-artifact@v4
+        continue-on-error: true
 
       - name: Compare
         run: |
-          echo "# Results"
+          echo "# CRA Comparative Test Results"
           echo ""
           echo "## WITHOUT CRA"
-          cat without-cra/REPORT.md 2>/dev/null || echo "No report"
+          echo "### Report:"
+          cat without-cra/REPORT.md 2>/dev/null || echo "No report generated"
+          echo ""
+          echo "### HTML (first 50 lines):"
+          head -50 without-cra/index.html 2>/dev/null || echo "No HTML generated"
+          echo ""
+          echo "---"
           echo ""
           echo "## WITH CRA"
-          cat with-cra/REPORT.md 2>/dev/null || echo "No report"
-
-      - name: Upload comparison
-        uses: actions/upload-artifact@v4
-        with:
-          name: comparison
-          path: |
-            without-cra/
-            with-cra/
+          echo "### Report:"
+          cat with-cra/REPORT.md 2>/dev/null || echo "No report generated"
+          echo ""
+          echo "### HTML (first 50 lines):"
+          head -50 with-cra/index.html 2>/dev/null || echo "No HTML generated"
