@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use cra_core::{Resolver, AtlasManifest, ContextBlock};
+use cra_core::storage::{StorageBackend, FileStorage};
 
 use crate::error::{McpError, McpResult};
 
@@ -98,6 +99,9 @@ pub struct SessionManager {
 
     /// Loaded atlases directory (if any)
     atlases_dir: Option<String>,
+
+    /// Trace storage directory (if any)
+    traces_dir: Option<String>,
 }
 
 impl SessionManager {
@@ -107,12 +111,31 @@ impl SessionManager {
             resolver: RwLock::new(Resolver::new()),
             sessions: RwLock::new(HashMap::new()),
             atlases_dir: None,
+            traces_dir: None,
         }
     }
 
     /// Create with an atlases directory
     pub fn with_atlases_dir(mut self, dir: &str) -> Self {
         self.atlases_dir = Some(dir.to_string());
+        self
+    }
+
+    /// Create with trace persistence to a directory
+    ///
+    /// Trace events will be written to JSONL files in the specified directory,
+    /// one file per session (e.g., `{session_id}.jsonl`).
+    pub fn with_traces_dir(mut self, dir: &str) -> Self {
+        self.traces_dir = Some(dir.to_string());
+
+        // Set up storage backend
+        if let Ok(storage) = FileStorage::new(dir) {
+            let storage: Arc<dyn StorageBackend> = Arc::new(storage);
+            self.resolver = RwLock::new(Resolver::new().with_storage(storage));
+        } else {
+            eprintln!("Warning: Failed to create trace storage at {}, using in-memory", dir);
+        }
+
         self
     }
 

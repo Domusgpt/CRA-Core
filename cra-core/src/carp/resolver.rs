@@ -8,6 +8,7 @@
 //! - Emits TRACE events for all operations
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use chrono::Utc;
 use serde_json::Value;
@@ -16,6 +17,7 @@ use uuid::Uuid;
 use crate::atlas::{AtlasAction, AtlasContextBlock, AtlasManifest, InjectMode};
 use crate::context::{ContextRegistry, ContextMatcher, LoadedContext, ContextSource};
 use crate::error::{CRAError, Result};
+use crate::storage::StorageBackend;
 use crate::trace::{DeferredConfig, EventType, TraceCollector, TRACEEvent};
 
 use super::{
@@ -128,6 +130,26 @@ impl Resolver {
     /// This is recommended for high-throughput scenarios (agent swarms, benchmarks).
     pub fn with_deferred_tracing(mut self, config: DeferredConfig) -> Self {
         self.trace_collector = TraceCollector::with_deferred(config);
+        self
+    }
+
+    /// Enable persistent storage for trace events
+    ///
+    /// Events are written to the storage backend as they are emitted.
+    /// This provides durability - events survive process restarts.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use cra_core::Resolver;
+    /// use cra_core::storage::FileStorage;
+    /// use std::sync::Arc;
+    ///
+    /// let storage = Arc::new(FileStorage::new("~/.cra/traces")?);
+    /// let resolver = Resolver::new().with_storage(storage);
+    /// ```
+    pub fn with_storage(mut self, storage: Arc<dyn StorageBackend>) -> Self {
+        self.trace_collector = TraceCollector::new().with_storage(storage);
         self
     }
 

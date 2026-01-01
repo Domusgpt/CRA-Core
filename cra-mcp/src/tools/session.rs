@@ -117,3 +117,45 @@ pub struct BootstrapInput {
     #[serde(default)]
     pub capabilities: Vec<String>,
 }
+
+/// cra_get_trace tool definition
+pub fn get_trace_tool() -> ToolDefinition {
+    ToolDefinition {
+        name: "cra_get_trace".to_string(),
+        description: "Export the TRACE audit trail for the current session. Returns all events with their hashes for verification. Use this to save a copy of the trace before ending the session.".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Optional: specific session ID. If not provided, uses current session."
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["json", "jsonl"],
+                    "description": "Output format. 'json' returns an array, 'jsonl' returns newline-delimited JSON."
+                }
+            }
+        }),
+    }
+}
+
+/// Input for cra_get_trace
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetTraceInput {
+    #[serde(default)]
+    pub session_id: Option<String>,
+    #[serde(default)]
+    pub format: Option<String>,
+}
+
+/// Output from cra_get_trace
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetTraceOutput {
+    pub session_id: String,
+    pub event_count: usize,
+    pub genesis_hash: String,
+    pub current_hash: String,
+    pub is_valid: bool,
+    pub events: serde_json::Value,
+}

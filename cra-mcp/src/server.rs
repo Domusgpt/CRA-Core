@@ -153,6 +153,7 @@ impl McpServer {
         let result = match name {
             "cra_start_session" => self.call_start_session(arguments).await?,
             "cra_end_session" => self.call_end_session(arguments).await?,
+            "cra_get_trace" => self.call_get_trace(arguments).await?,
             "cra_request_context" => self.call_request_context(arguments).await?,
             "cra_search_contexts" => self.call_search_contexts(arguments).await?,
             "cra_list_atlases" => self.call_list_atlases(arguments).await?,
@@ -285,6 +286,44 @@ impl McpServer {
         }))
     }
 
+    async fn call_get_trace(&self, args: Value) -> McpResult<Value> {
+        let input: tools::session::GetTraceInput = serde_json::from_value(args)?;
+
+        // Get session (current or specified)
+        let session = if let Some(session_id) = input.session_id {
+            self.session_manager.get_session(&session_id)?
+        } else {
+            self.session_manager.get_current_session()?
+        };
+
+        // Get trace events
+        let events = self.session_manager.get_trace(&session.session_id)?;
+        let verification = self.session_manager.verify_chain(&session.session_id)?;
+
+        // Format based on request
+        let format = input.format.unwrap_or_else(|| "json".to_string());
+        let events_output: Value = if format == "jsonl" {
+            // Return as newline-delimited JSON string
+            let jsonl: String = events.iter()
+                .map(|e| serde_json::to_string(e).unwrap_or_default())
+                .collect::<Vec<_>>()
+                .join("\n");
+            json!(jsonl)
+        } else {
+            // Return as JSON array
+            json!(events)
+        };
+
+        Ok(json!({
+            "session_id": session.session_id,
+            "event_count": events.len(),
+            "genesis_hash": session.genesis_hash,
+            "current_hash": session.current_hash,
+            "is_valid": verification.is_valid,
+            "events": events_output
+        }))
+    }
+
     async fn call_request_context(&self, args: Value) -> McpResult<Value> {
         let input: tools::context::RequestContextInput = serde_json::from_value(args)?;
 
@@ -405,6 +444,7 @@ impl McpServer {
 /// Builder for McpServer
 pub struct McpServerBuilder {
     atlases_dir: Option<String>,
+    traces_dir: Option<String>,
     name: String,
     version: String,
 }
@@ -413,6 +453,7 @@ impl McpServerBuilder {
     pub fn new() -> Self {
         Self {
             atlases_dir: None,
+            traces_dir: None,
             name: crate::SERVER_NAME.to_string(),
             version: crate::SERVER_VERSION.to_string(),
         }
@@ -423,19 +464,33 @@ impl McpServerBuilder {
         self
     }
 
+    /// Enable trace persistence to a directory
+    ///
+    /// Trace events will be written to JSONL files in the specified directory,
+    /// one file per session (e.g., `{session_id}.jsonl`).
+    pub fn with_traces_dir(mut self, dir: &str) -> Self {
+        self.traces_dir = Some(dir.to_string());
+        self
+    }
+
     pub fn with_name(mut self, name: &str) -> Self {
         self.name = name.to_string();
         self
     }
 
     pub async fn build(self) -> McpResult<McpServer> {
-        let session_manager = if let Some(dir) = &self.atlases_dir {
-            let manager = SessionManager::new().with_atlases_dir(dir);
-            manager.load_atlases()?;
-            manager
-        } else {
-            SessionManager::new()
-        };
+        let mut session_manager = SessionManager::new();
+
+        // Configure trace persistence
+        if let Some(traces_dir) = &self.traces_dir {
+            session_manager = session_manager.with_traces_dir(traces_dir);
+        }
+
+        // Configure atlases
+        if let Some(atlases_dir) = &self.atlases_dir {
+            session_manager = session_manager.with_atlases_dir(atlases_dir);
+            session_manager.load_atlases()?;
+        }
 
         Ok(McpServer {
             session_manager: Arc::new(session_manager),

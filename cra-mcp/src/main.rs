@@ -42,6 +42,15 @@ struct Args {
     #[arg(short, long)]
     atlases: Option<String>,
 
+    /// Directory for trace storage (JSONL files)
+    /// Defaults to ~/.cra/traces
+    #[arg(short, long)]
+    traces: Option<String>,
+
+    /// Disable trace persistence (use in-memory only)
+    #[arg(long)]
+    no_traces: bool,
+
     /// Enable verbose logging
     #[arg(short, long)]
     verbose: bool,
@@ -63,6 +72,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Build server
     let mut builder = McpServer::builder();
+
+    // Configure trace persistence
+    if !args.no_traces {
+        let traces_dir = args.traces.unwrap_or_else(|| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+            format!("{}/.cra/traces", home)
+        });
+        tracing::info!("Trace storage: {}", traces_dir);
+        builder = builder.with_traces_dir(&traces_dir);
+    } else {
+        tracing::info!("Trace storage: disabled (in-memory only)");
+    }
 
     if let Some(atlases_dir) = &args.atlases {
         tracing::info!("Loading atlases from: {}", atlases_dir);

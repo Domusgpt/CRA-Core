@@ -18,6 +18,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::error::{CRAError, Result};
+use crate::storage::StorageBackend;
 
 use super::{
     buffer::TraceRingBuffer,
@@ -166,6 +167,30 @@ impl TraceCollector {
     {
         self.on_emit = Some(Box::new(callback));
         self
+    }
+
+    /// Create a collector with persistent storage
+    ///
+    /// Events are written to the storage backend as they are emitted.
+    /// This provides durability - events survive process restarts.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use cra_core::storage::FileStorage;
+    /// use cra_core::trace::TraceCollector;
+    /// use std::sync::Arc;
+    ///
+    /// let storage = Arc::new(FileStorage::new("~/.cra/traces")?);
+    /// let collector = TraceCollector::new().with_storage(storage);
+    /// ```
+    pub fn with_storage(self, storage: Arc<dyn StorageBackend>) -> Self {
+        self.with_callback(move |event| {
+            // Best-effort write to storage - don't block on errors
+            if let Err(e) = storage.store_event(event) {
+                eprintln!("TRACE storage error: {}", e);
+            }
+        })
     }
 
     /// Check if deferred mode is enabled
@@ -859,5 +884,50 @@ mod tests {
             .unwrap();
         assert_eq!(context_events.len(), 1);
         assert_eq!(context_events[0].payload["context_id"], "ctx-123");
+    }
+
+    #[test]
+    fn test_with_storage() {
+        use crate::storage::FileStorage;
+        use std::sync::Arc;
+
+        // Create temp directory for storage
+        let temp_dir = std::env::temp_dir().join("cra-storage-test");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+
+        let storage = Arc::new(FileStorage::new(&temp_dir).unwrap());
+
+        // Create collector with storage
+        let mut collector = TraceCollector::new().with_storage(storage.clone());
+
+        // Emit events
+        collector
+            .emit(
+                "storage-test-session",
+                EventType::SessionStarted,
+                json!({"agent_id": "agent-1", "goal": "test storage"}),
+            )
+            .unwrap();
+
+        collector
+            .emit(
+                "storage-test-session",
+                EventType::SessionEnded,
+                json!({"reason": "completed", "duration_ms": 1000}),
+            )
+            .unwrap();
+
+        // Check events were stored
+        let stored_events = storage.get_events("storage-test-session").unwrap();
+        assert_eq!(stored_events.len(), 2);
+        assert_eq!(stored_events[0].event_type, EventType::SessionStarted);
+        assert_eq!(stored_events[1].event_type, EventType::SessionEnded);
+
+        // Verify chain integrity
+        let verification = collector.verify_chain("storage-test-session").unwrap();
+        assert!(verification.is_valid);
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }

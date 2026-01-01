@@ -29,6 +29,7 @@ pub fn get_tool_definitions() -> Vec<ToolDefinition> {
     vec![
         session::start_session_tool(),
         session::end_session_tool(),
+        session::get_trace_tool(),
         context::request_context_tool(),
         context::search_contexts_tool(),
         context::list_atlases_tool(),
