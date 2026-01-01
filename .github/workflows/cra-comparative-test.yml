@@ -1,0 +1,132 @@
+name: CRA Comparative Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_description:
+        description: 'Task for agents to complete'
+        required: true
+        default: 'Create a SoundWave music streaming landing page with VIB3+ audio-reactive background'
+
+jobs:
+  test-without-cra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup
+        run: mkdir -p output
+
+      - name: Run Claude WITHOUT CRA
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --model sonnet --print "
+          Task: ${{ github.event.inputs.task_description }}
+
+          Requirements:
+          1. Create complete HTML file
+          2. Use VIB3+ for animated background
+          3. Make it audio-reactive
+          4. Include styling and call-to-action
+
+          Save to: output/index.html
+
+          Also create output/REPORT.md documenting:
+          - What you knew vs guessed about VIB3+
+          - Confidence level 1-10
+          "
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: without-cra
+          path: output/
+
+  test-with-cra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build CRA
+        run: cargo build --release -p cra-mcp
+
+      - name: Setup
+        run: |
+          mkdir -p output
+          mkdir -p .claude
+          cat > .claude/settings.json << 'EOF'
+          {
+            "mcpServers": {
+              "cra": {
+                "command": "./target/release/cra-mcp-server",
+                "args": ["-a", "test-atlases"]
+              }
+            }
+          }
+          EOF
+
+      - name: Run Claude WITH CRA
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --model sonnet --print "
+          Task: ${{ github.event.inputs.task_description }}
+
+          Requirements:
+          1. Create complete HTML file
+          2. Use VIB3+ for animated background
+          3. Make it audio-reactive
+          4. Include styling and call-to-action
+
+          Use CRA tools.
+
+          Save to: output/index.html
+
+          Also create output/REPORT.md documenting:
+          - What CRA context you received
+          - Confidence level 1-10
+          "
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: with-cra
+          path: output/
+
+  compare:
+    needs: [test-without-cra, test-with-cra]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download results
+        uses: actions/download-artifact@v4
+
+      - name: Compare
+        run: |
+          echo "# Results"
+          echo ""
+          echo "## WITHOUT CRA"
+          cat without-cra/REPORT.md 2>/dev/null || echo "No report"
+          echo ""
+          echo "## WITH CRA"
+          cat with-cra/REPORT.md 2>/dev/null || echo "No report"
+
+      - name: Upload comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: comparison
+          path: |
+            without-cra/
+            with-cra/
