@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::atlas::AtlasContextPack;
+use crate::atlas::{AtlasContextPack, InjectMode};
 use crate::carp::ContextBlock;
 
 /// Source of context content
@@ -54,6 +54,14 @@ pub struct LoadedContext {
 
     /// Conditions for when to inject
     pub conditions: Option<Value>,
+
+    /// Injection mode (always, on_match, on_demand, risk_based)
+    #[serde(default)]
+    pub inject_mode: InjectMode,
+
+    /// Other context IDs to inject when this one matches
+    #[serde(default)]
+    pub also_inject: Vec<String>,
 }
 
 impl LoadedContext {
@@ -144,11 +152,32 @@ impl ContextRegistry {
                     priority: pack.priority,
                     keywords,
                     conditions: pack.conditions.clone(),
+                    inject_mode: pack.inject_mode,
+                    also_inject: vec![], // context_packs don't have also_inject
                 };
 
                 self.add_context(context);
             }
         }
+    }
+
+    /// Get all contexts with InjectMode::Always
+    pub fn get_always_inject(&self) -> Vec<&LoadedContext> {
+        self.contexts
+            .iter()
+            .filter(|ctx| ctx.inject_mode == InjectMode::Always)
+            .collect()
+    }
+
+    /// Get all contexts with InjectMode::Always for a specific atlas
+    pub fn get_always_inject_for_atlas(&self, atlas_id: &str) -> Vec<&LoadedContext> {
+        self.contexts
+            .iter()
+            .filter(|ctx| {
+                ctx.inject_mode == InjectMode::Always &&
+                matches!(&ctx.source, ContextSource::Atlas(id) if id == atlas_id)
+            })
+            .collect()
     }
 
     /// Query for matching context based on goal text
@@ -348,6 +377,8 @@ mod tests {
             priority: 100,
             keywords: vec!["hash".to_string(), "trace".to_string(), "compute".to_string()],
             conditions: None,
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
         });
 
         registry.add_context(LoadedContext {
@@ -358,6 +389,8 @@ mod tests {
             priority: 50,
             keywords: vec!["policy".to_string(), "deny".to_string(), "evaluate".to_string()],
             conditions: None,
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
         });
 
         // Query for hash-related context
@@ -383,6 +416,8 @@ mod tests {
             priority: 100,
             keywords: vec!["trace".to_string()],
             conditions: Some(serde_json::json!({"keywords": ["trace", "event", "hash"]})),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
         });
 
         // Should match when keywords present
@@ -404,6 +439,8 @@ mod tests {
             priority: 50,
             keywords: vec![],
             conditions: None,
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
         };
 
         let block = context.to_context_block();
@@ -411,5 +448,39 @@ mod tests {
         assert_eq!(block.source_atlas, "com.test");
         assert_eq!(block.content, "Test content");
         assert_eq!(block.priority, 50);
+    }
+
+    #[test]
+    fn test_always_inject() {
+        let mut registry = ContextRegistry::new();
+
+        registry.add_context(LoadedContext {
+            pack_id: "essential".to_string(),
+            source: ContextSource::Atlas("dev.cra".to_string()),
+            content: "Essential information".to_string(),
+            content_type: "text/markdown".to_string(),
+            priority: 350,
+            keywords: vec![],
+            conditions: None,
+            inject_mode: InjectMode::Always,
+            also_inject: vec![],
+        });
+
+        registry.add_context(LoadedContext {
+            pack_id: "optional".to_string(),
+            source: ContextSource::Atlas("dev.cra".to_string()),
+            content: "Optional information".to_string(),
+            content_type: "text/markdown".to_string(),
+            priority: 50,
+            keywords: vec!["optional".to_string()],
+            conditions: None,
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
+        });
+
+        // get_always_inject should only return the "essential" context
+        let always = registry.get_always_inject();
+        assert_eq!(always.len(), 1);
+        assert_eq!(always[0].pack_id, "essential");
     }
 }

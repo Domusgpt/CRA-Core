@@ -14,7 +14,7 @@ use chrono::Utc;
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::atlas::{AtlasAction, AtlasContextBlock, AtlasManifest, InjectMode};
+use crate::atlas::{AtlasAction, AtlasManifest, InjectMode};
 use crate::context::{ContextRegistry, ContextMatcher, LoadedContext, ContextSource};
 use crate::error::{CRAError, Result};
 use crate::storage::StorageBackend;
@@ -229,6 +229,8 @@ impl Resolver {
                 priority: block.priority,
                 keywords: block.keywords.clone(),
                 conditions,
+                inject_mode: block.inject_mode,
+                also_inject: block.also_inject.clone(),
             };
 
             self.context_registry.add_context(loaded);
@@ -454,11 +456,45 @@ impl Resolver {
 
         // Query context registry for matching context based on goal
         let context_hints: Vec<String> = request.context_hints.clone().unwrap_or_default();
+
+        // Track which context IDs we've already injected to avoid duplicates
+        let mut injected_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut context_blocks: Vec<ContextBlock> = Vec::new();
+
+        // 1. First, inject all InjectMode::Always contexts
+        for ctx in self.context_registry.get_always_inject() {
+            if injected_ids.insert(ctx.pack_id.clone()) {
+                let block = ctx.to_context_block();
+
+                self.trace_collector.emit(
+                    &request.session_id,
+                    EventType::ContextInjected,
+                    serde_json::json!({
+                        "context_id": block.block_id,
+                        "source_atlas": block.source_atlas,
+                        "priority": block.priority,
+                        "content_type": block.content_type,
+                        "token_estimate": ctx.token_estimate(),
+                        "inject_mode": "always",
+                    }),
+                )?;
+
+                context_blocks.push(block);
+            }
+        }
+
+        // 2. Then, inject keyword-matching contexts
         let matching_contexts = self.context_registry.query(&request.goal, None);
 
-        // Convert matching context to ContextBlocks and emit TRACE events
-        let mut context_blocks: Vec<ContextBlock> = Vec::new();
+        // Collect also_inject IDs from matching contexts
+        let mut also_inject_queue: Vec<String> = Vec::new();
+
         for ctx in matching_contexts {
+            // Skip InjectMode::Always (already handled above)
+            if ctx.inject_mode == InjectMode::Always {
+                continue;
+            }
+
             // Evaluate conditions with the matcher for fine-grained matching
             let match_result = self.context_matcher.evaluate(
                 ctx.conditions.as_ref(),
@@ -468,7 +504,7 @@ impl Resolver {
                 ctx.priority,
             );
 
-            if match_result.matched {
+            if match_result.matched && injected_ids.insert(ctx.pack_id.clone()) {
                 let block = ctx.to_context_block();
 
                 // Emit context.injected TRACE event
@@ -486,8 +522,51 @@ impl Resolver {
                 )?;
 
                 context_blocks.push(block);
+
+                // Queue also_inject IDs
+                also_inject_queue.extend(ctx.also_inject.clone());
             }
         }
+
+        // 3. Recursively inject also_inject contexts (with loop protection)
+        let mut processed_also_inject: std::collections::HashSet<String> = std::collections::HashSet::new();
+        while let Some(ctx_id) = also_inject_queue.pop() {
+            // Skip if already processed or already injected
+            if !processed_also_inject.insert(ctx_id.clone()) {
+                continue;
+            }
+            if injected_ids.contains(&ctx_id) {
+                continue;
+            }
+
+            // Look up the context by ID
+            if let Some(ctx) = self.context_registry.get_by_pack_id(&ctx_id) {
+                if injected_ids.insert(ctx.pack_id.clone()) {
+                    let block = ctx.to_context_block();
+
+                    self.trace_collector.emit(
+                        &request.session_id,
+                        EventType::ContextInjected,
+                        serde_json::json!({
+                            "context_id": block.block_id,
+                            "source_atlas": block.source_atlas,
+                            "priority": block.priority,
+                            "content_type": block.content_type,
+                            "token_estimate": ctx.token_estimate(),
+                            "inject_reason": "also_inject",
+                        }),
+                    )?;
+
+                    context_blocks.push(block);
+
+                    // Queue nested also_inject IDs (recursive)
+                    also_inject_queue.extend(ctx.also_inject.clone());
+                }
+            }
+        }
+
+        // Sort context blocks by priority (highest first)
+        context_blocks.sort_by(|a, b| b.priority.cmp(&a.priority));
 
         // Build resolution with injected context
         let resolution = CARPResolution::builder(request.session_id.clone())
@@ -899,5 +978,269 @@ mod tests {
             .filter(|e| e.event_type == crate::trace::EventType::ContextInjected)
             .collect();
         assert!(!context_events.is_empty(), "Should have context.injected trace events");
+    }
+
+    #[test]
+    fn test_inject_mode_always() {
+        use crate::atlas::AtlasContextBlock;
+
+        // Create an atlas with InjectMode::Always context
+        let mut atlas: AtlasManifest = serde_json::from_value(json!({
+            "atlas_version": "1.0",
+            "atlas_id": "com.test.always",
+            "version": "1.0.0",
+            "name": "Always Inject Test",
+            "description": "Testing InjectMode::Always",
+            "domains": ["test"],
+            "capabilities": [],
+            "policies": [],
+            "actions": []
+        }))
+        .unwrap();
+
+        atlas.context_blocks = vec![
+            AtlasContextBlock {
+                context_id: "essential-facts".to_string(),
+                name: "Essential Facts".to_string(),
+                priority: 350,
+                content: "CRITICAL: VIB3+ is NOT 3.0. It is a CSS animation library.".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::Always,
+                also_inject: vec![],
+                inject_when: vec![],
+                keywords: vec![], // No keywords needed for Always
+                risk_tiers: vec![],
+            },
+            AtlasContextBlock {
+                context_id: "optional-info".to_string(),
+                name: "Optional Info".to_string(),
+                priority: 50,
+                content: "Some optional information".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::OnMatch,
+                also_inject: vec![],
+                inject_when: vec![],
+                keywords: vec!["specific".to_string()],
+                risk_tiers: vec![],
+            },
+        ];
+
+        let mut resolver = Resolver::new();
+        resolver.load_atlas(atlas).unwrap();
+
+        let session_id = resolver.create_session("test-agent", "Test always inject").unwrap();
+
+        // Resolve with a goal that does NOT match any keywords
+        let request = CARPRequest::new(
+            session_id.clone(),
+            "test-agent".to_string(),
+            "I want to do something completely unrelated".to_string(),
+        );
+        let resolution = resolver.resolve(&request).unwrap();
+
+        // Should have injected essential-facts (InjectMode::Always)
+        assert!(
+            resolution.context_blocks.iter().any(|b| b.block_id == "essential-facts"),
+            "Should have essential-facts context block even without keyword match"
+        );
+
+        // Should NOT have injected optional-info (OnMatch with no keyword match)
+        assert!(
+            !resolution.context_blocks.iter().any(|b| b.block_id == "optional-info"),
+            "Should NOT have optional-info because keywords don't match"
+        );
+
+        // Verify priority ordering - essential-facts should be first
+        assert_eq!(resolution.context_blocks[0].block_id, "essential-facts");
+    }
+
+    #[test]
+    fn test_also_inject_recursion() {
+        use crate::atlas::AtlasContextBlock;
+
+        // Create an atlas with also_inject chains
+        let mut atlas: AtlasManifest = serde_json::from_value(json!({
+            "atlas_version": "1.0",
+            "atlas_id": "com.test.also_inject",
+            "version": "1.0.0",
+            "name": "Also Inject Test",
+            "description": "Testing also_inject recursion",
+            "domains": ["test"],
+            "capabilities": [],
+            "policies": [],
+            "actions": []
+        }))
+        .unwrap();
+
+        atlas.context_blocks = vec![
+            AtlasContextBlock {
+                context_id: "workflow".to_string(),
+                name: "Workflow Guide".to_string(),
+                priority: 100,
+                content: "How to create a VIB3+ animation".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::OnMatch,
+                also_inject: vec!["essential-facts".to_string(), "parameters".to_string()],
+                inject_when: vec![],
+                keywords: vec!["animation".to_string(), "workflow".to_string()],
+                risk_tiers: vec![],
+            },
+            AtlasContextBlock {
+                context_id: "essential-facts".to_string(),
+                name: "Essential Facts".to_string(),
+                priority: 350,
+                content: "VIB3+ is a CSS animation library".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::OnMatch, // Not Always - should only inject via also_inject
+                also_inject: vec!["deep-nested".to_string()], // Recursive chain
+                inject_when: vec![],
+                keywords: vec!["facts".to_string()],
+                risk_tiers: vec![],
+            },
+            AtlasContextBlock {
+                context_id: "parameters".to_string(),
+                name: "Parameters Reference".to_string(),
+                priority: 200,
+                content: "Parameters: speed, intensity, color".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::OnMatch,
+                also_inject: vec![],
+                inject_when: vec![],
+                keywords: vec!["parameters".to_string()],
+                risk_tiers: vec![],
+            },
+            AtlasContextBlock {
+                context_id: "deep-nested".to_string(),
+                name: "Deeply Nested".to_string(),
+                priority: 50,
+                content: "Deep nested context".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::OnMatch,
+                also_inject: vec![],
+                inject_when: vec![],
+                keywords: vec!["nested".to_string()],
+                risk_tiers: vec![],
+            },
+        ];
+
+        let mut resolver = Resolver::new();
+        resolver.load_atlas(atlas).unwrap();
+
+        let session_id = resolver.create_session("test-agent", "Test also_inject").unwrap();
+
+        // Resolve with goal matching "workflow" keyword
+        let request = CARPRequest::new(
+            session_id.clone(),
+            "test-agent".to_string(),
+            "I want to learn the animation workflow".to_string(),
+        );
+        let resolution = resolver.resolve(&request).unwrap();
+
+        // Should have:
+        // 1. workflow (matched keyword)
+        // 2. essential-facts (via also_inject from workflow)
+        // 3. parameters (via also_inject from workflow)
+        // 4. deep-nested (via also_inject from essential-facts - recursive)
+
+        let block_ids: Vec<&str> = resolution.context_blocks.iter()
+            .map(|b| b.block_id.as_str())
+            .collect();
+
+        assert!(block_ids.contains(&"workflow"), "Should have workflow");
+        assert!(block_ids.contains(&"essential-facts"), "Should have essential-facts via also_inject");
+        assert!(block_ids.contains(&"parameters"), "Should have parameters via also_inject");
+        assert!(block_ids.contains(&"deep-nested"), "Should have deep-nested via recursive also_inject");
+
+        // Verify we have all 4 contexts
+        assert_eq!(resolution.context_blocks.len(), 4);
+
+        // Verify sorted by priority (highest first)
+        assert_eq!(resolution.context_blocks[0].block_id, "essential-facts"); // priority 350
+        assert_eq!(resolution.context_blocks[1].block_id, "parameters"); // priority 200
+        assert_eq!(resolution.context_blocks[2].block_id, "workflow"); // priority 100
+        assert_eq!(resolution.context_blocks[3].block_id, "deep-nested"); // priority 50
+    }
+
+    #[test]
+    fn test_also_inject_no_infinite_loop() {
+        use crate::atlas::AtlasContextBlock;
+
+        // Create an atlas with circular also_inject references
+        let mut atlas: AtlasManifest = serde_json::from_value(json!({
+            "atlas_version": "1.0",
+            "atlas_id": "com.test.circular",
+            "version": "1.0.0",
+            "name": "Circular Test",
+            "description": "Testing also_inject doesn't infinite loop",
+            "domains": ["test"],
+            "capabilities": [],
+            "policies": [],
+            "actions": []
+        }))
+        .unwrap();
+
+        // A -> B -> C -> A (circular)
+        atlas.context_blocks = vec![
+            AtlasContextBlock {
+                context_id: "context-a".to_string(),
+                name: "Context A".to_string(),
+                priority: 100,
+                content: "Content A".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::OnMatch,
+                also_inject: vec!["context-b".to_string()],
+                inject_when: vec![],
+                keywords: vec!["trigger".to_string()],
+                risk_tiers: vec![],
+            },
+            AtlasContextBlock {
+                context_id: "context-b".to_string(),
+                name: "Context B".to_string(),
+                priority: 90,
+                content: "Content B".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::OnMatch,
+                also_inject: vec!["context-c".to_string()],
+                inject_when: vec![],
+                keywords: vec!["b".to_string()],
+                risk_tiers: vec![],
+            },
+            AtlasContextBlock {
+                context_id: "context-c".to_string(),
+                name: "Context C".to_string(),
+                priority: 80,
+                content: "Content C".to_string(),
+                content_type: "text/markdown".to_string(),
+                inject_mode: InjectMode::OnMatch,
+                also_inject: vec!["context-a".to_string()], // Circular back to A
+                inject_when: vec![],
+                keywords: vec!["c".to_string()],
+                risk_tiers: vec![],
+            },
+        ];
+
+        let mut resolver = Resolver::new();
+        resolver.load_atlas(atlas).unwrap();
+
+        let session_id = resolver.create_session("test-agent", "Test circular").unwrap();
+
+        // This should NOT hang or infinite loop
+        let request = CARPRequest::new(
+            session_id.clone(),
+            "test-agent".to_string(),
+            "trigger the circular chain".to_string(),
+        );
+        let resolution = resolver.resolve(&request).unwrap();
+
+        // Should have all 3 contexts, each only once
+        assert_eq!(resolution.context_blocks.len(), 3);
+
+        let block_ids: Vec<&str> = resolution.context_blocks.iter()
+            .map(|b| b.block_id.as_str())
+            .collect();
+
+        assert!(block_ids.contains(&"context-a"));
+        assert!(block_ids.contains(&"context-b"));
+        assert!(block_ids.contains(&"context-c"));
     }
 }

@@ -32,6 +32,7 @@ pub use matcher::{ContextMatcher, MatchResult, MatchScore, ConditionBuilder};
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::atlas::InjectMode;
     use serde_json::json;
 
     #[test]
@@ -47,6 +48,8 @@ mod tests {
             priority: 100,
             keywords: vec!["hash".to_string(), "trace".to_string(), "event".to_string()],
             conditions: Some(json!({"file_pattern": "trace/*.rs"})),
+            inject_mode: InjectMode::OnMatch,
+            also_inject: vec![],
         });
 
         // Query for matching context
